@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
-from shapely.constructive import constrained_delaunay_triangles
-
-from mesh import *
-from geometry import make_square_edges, fill_in_square, remove_in_area_points
+from mesh_generation.mesh import Mesh
+import numpy as np
+from shapely.geometry import Polygon
 from shapely import affinity
-from extrude import extrude, plot_3d_element
+from mesh_generation.extrude import extrude, plot_3d_element
+from mesh_generation.stats import plot_mesh_pdf
 
 STEP_SIZE = 0.2
 

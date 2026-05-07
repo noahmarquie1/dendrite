@@ -1,5 +1,5 @@
 # should include functions to make a point cloud 3D and plot a corresponding graph
-from geometry import make_line
+from mesh_generation.geometry import make_line
 
 import matplotlib.pyplot as plt
 import numpy as np

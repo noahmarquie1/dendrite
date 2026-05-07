@@ -1,8 +1,8 @@
 from hmac import digest_size
 
-from geometry import *
-from stats import *
-from shapely.geometry import Polygon, Point
+from mesh_generation.geometry import *
+from mesh_generation.stats import *
+from shapely.geometry import Polygon
 from shapely.plotting import plot_polygon
 
 s1 = np.array([[0, 0], [0, 1], [1, 1], [1, 0]]) # simple square between 0 and 1

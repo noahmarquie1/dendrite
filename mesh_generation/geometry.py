@@ -8,7 +8,10 @@ def make_line(p1, p2, step_size):
 
     m = p2 - p1
     total_dist = np.linalg.norm(m)
-    unit_step = m / total_dist  # unit vector in direction of line
+    if total_dist < 1e-8:
+        unit_step = np.zeros(shape=(0, len(p1)))
+    else:
+        unit_step = m / total_dist  # unit vector in direction of line
 
     total_steps = int(total_dist / step_size)
     if total_steps == 0:

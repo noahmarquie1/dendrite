@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from geometry import make_square_edges, fill_in_square, remove_in_area_points
-from stats import plot_mesh_pdf
+from mesh_generation.geometry import make_square_edges, fill_in_square, remove_in_area_points
+from mesh_generation.stats import plot_mesh_pdf
 
 STEP_SIZE = 0.1
 

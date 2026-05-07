@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from geometry import fetch_neighbors
+from mesh_generation.geometry import fetch_neighbors
 
 
 def get_single_point_avg_dist(center, neighbors):
@@ -68,7 +68,7 @@ def plot_mesh_pdf(mesh_points, approx_step, bin_amt=20, ax=None, color="lightblu
                 bins[i] += 1
                 total_samples += 1
 
-    # plot pdf
+    # plot PDF
     if ax is None:
         ax = plt.gca()
     for i, bin in enumerate(bins):

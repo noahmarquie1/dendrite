@@ -4,8 +4,8 @@ from shapely.plotting import plot_polygon
 from shapely import unary_union
 import matplotlib.pyplot as plt
 from hexalattice.hexalattice import create_hex_grid
-from geometry import make_line
-from stats import plot_mesh_pdf
+from mesh_generation.geometry import make_line
+from mesh_generation.stats import plot_mesh_pdf
 
 class Mesh:
     def __init__(self, polygon, step_size=0.1):
@@ -27,6 +27,7 @@ class Mesh:
         hex_centers, _ = create_hex_grid(nx=nx, ny=ny, min_diam=self.step_size)
         mask = np.array([self.polygon.contains(Point(p)) for p in hex_centers])
         self.inner_points = hex_centers[mask]
+        return self.inner_points
 
     def edge_fill(self):
         temp_vertices = np.append(self.edge_points, [self.edge_points[0]], axis=0)

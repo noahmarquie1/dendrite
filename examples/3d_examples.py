@@ -1,7 +1,7 @@
-from extrude import *
-from snowflake_mesh import generate_full_snowflake
-from geometry import *
-from stats import *
+from mesh_generation.extrude import *
+from mesh_generation.snowflake_mesh import generate_full_snowflake
+from mesh_generation.geometry import *
+from mesh_generation.stats import *
 
 STEP_SIZE = 0.2
 
