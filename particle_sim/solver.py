@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 class PointCloudSolver:
     def __init__(self, dpi=100, width=5, height=4, n_bodies=1,
                  force_multiplier=100, drag_coefficient=0.01,
-                 polygon=None):
+                 pdfs=False, pdf_interval=0, polygon=None, 
+                 fps=15, deg=2):
 
         self.solution = np.empty((0, 2))
         self.dpi = dpi
@@ -26,6 +27,7 @@ class PointCloudSolver:
             width = self.width,
             height = self.height,
             polygon=polygon,
+            deg=deg
         )
 
         self.anim = AnimationHandler(
@@ -34,6 +36,9 @@ class PointCloudSolver:
             height=self.height,
             polygon=polygon,
             dpi=self.dpi,
+            pdfs=pdfs,
+            pdf_interval=pdf_interval,
+            fps=fps
         )
 
 
@@ -57,47 +62,46 @@ class PointCloudSolver:
         return state
 
 
-    def calculate_derivatives(self, phys, state):
-        inter_object_force = phys.calculate_repulsive_force
-        state = state.reshape(phys.n_bodies * 2, 2)
+    def calculate_derivatives(self, state):
+        state = state.reshape(-1, 2)
+        num_bodies = int(state.shape[0] / 2)
 
-        initial_positions = state[:phys.n_bodies]
-        initial_velocities = state[phys.n_bodies:]
+        initial_positions = state[:num_bodies]
+        initial_velocities = state[num_bodies:]
         res = np.zeros_like(state)
 
-        # sum forces acting on each body
-        for i in range(phys.n_bodies):
-            for j in range(phys.n_bodies):
-                if i != j:
-                    res[phys.n_bodies + i] += inter_object_force(this=initial_positions[i],
-                                                                 other=initial_positions[j])
-            # calculate repulsion from walls
-            res[phys.n_bodies + i] += phys.calculate_wall_force(this=initial_positions[i])
-            # calculate drag force
-            res[phys.n_bodies + i] += phys.calculate_drag_force(vel=initial_velocities[i])
+        for i in range(num_bodies):
+            for j in range(i+1, num_bodies):
+                paired_repulsion = self.phys.calculate_repulsive_force(this=initial_positions[i], other=initial_positions[j])
+                res[num_bodies + i] += paired_repulsion
+                res[num_bodies + j] -= paired_repulsion # same repulsion in opposite direction (all masses equal)
+            #calculate repulsion from walls
+            res[num_bodies + i] += self.phys.calculate_wall_force(this=initial_positions[i])
+            #calculate drag force
+            res[num_bodies + i] += self.phys.calculate_drag_force(vel=initial_velocities[i])
 
         # derivatives of each position are equal to velocity
-        res[0:phys.n_bodies] = initial_velocities
+        res[0:num_bodies] = initial_velocities
         return res.flatten()
 
 
-    def solve(self, state0=None, h=0.05, steps=5):
+    def solve(self, state0=None, max_step=0.05, steps=5):
         print("Beginning simulation.")
         state0 = self.generate_random_initial_state() if state0 is None else state0
         y0 = state0.flatten()
-        self.solution = np.array([state0])
+        self.solution = np.zeros((steps, state0.shape[0], state0.shape[1]))
 
         solver = RK45(
-            lambda t, y: self.calculate_derivatives(phys=self.phys, state=y),
-            0, y0=y0, t_bound=h * (steps + 1), max_step=h,
+            lambda t, y: self.calculate_derivatives(state=y),
+            0, y0=y0, t_bound=max_step * (steps + 1), max_step=max_step,
         )
         for i in range(steps):
-            if (i + 1) % 100 == 0:
-                print(f"Completed {i + 1}/{steps} steps.")
+            if (i + 1) % (steps / 10) == 0:
+                print(f"Completed {i + 1}/{steps} steps. {(i+1)/steps*100:.1f}% complete.")
             solver.step()
             y = solver.y.reshape(state0.shape)
-            y = np.expand_dims(y, axis=0)
-            self.solution = np.append(self.solution, y, axis=0)
+            self.solution[i] = y
+
         return self.solution
 
 

@@ -2,7 +2,7 @@ from mesh_generation.snowflake_mesh import generate_full_snowflake
 from particle_sim.solver import PointCloudSolver
 import numpy as np
 
-N_BODIES_IDEAL = 30
+N_BODIES_IDEAL = 100
 FORCE_MULTIPLIER = 10
 DPI = 75
 DRAG_COEF = 2
@@ -18,6 +18,7 @@ while initial_points.shape[0] < N_BODIES_IDEAL:
     initial_points = snowflake_mesh.hex_fill()
     snowflake_mesh.step_size *= 0.95
 
+print("Initial points intended: ", N_BODIES_IDEAL)
 print("Initial points generated:", initial_points.shape[0])
 n_bodies_actual = initial_points.shape[0]
 
@@ -31,9 +32,15 @@ solver = PointCloudSolver(
     width=width,
     height=height,
     drag_coefficient=DRAG_COEF,
+    pdfs=True,
+    pdf_interval=50,
     polygon=snowflake_mesh.polygon,
 )
 
-solver.solve(h=0.01, steps=300, state0=state0)
+solver.solve(
+    h=0.01, 
+    steps=600, 
+    #state0=state0 # optional, specifies hexagonal initial state
+)
 solver.animate()
 

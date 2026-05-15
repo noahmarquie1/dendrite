@@ -1,31 +1,28 @@
-from shapely.geometry import Point, LineString
-from shapely.ops import nearest_points
+import shapely
 import numpy as np
+from scipy.ndimage import distance_transform_edt
+from jax.scipy.ndimage import map_coordinates
 
-def get_edges(polygon):
-    edges = np.zeros((0, 2, 2))
-    for i, coord in enumerate(polygon.exterior.coords):
-        if (i == len(polygon.exterior.coords) - 1):
-            edge =  np.array([[coord, polygon.exterior.coords[0]]])
-        else:
-            edge =  np.array([[coord, polygon.exterior.coords[i+1]]])
-        edges = np.append(edges, edge, axis=0)
-    return edges
+def generate_sdf(geometry, res=256):
+    x = np.linspace(0, 1, res)
+    y = np.linspace(0, 1, res)
+    xv, yv = np.meshgrid(x, y)
+    
+    points = shapely.points(xv, yv)
+    mask = shapely.contains(geometry, points)
+    dx = 1.0 / (res - 1)
 
-def find_closest_point_on_edge(point, edge_start, edge_end):
-    p = Point(point)
-    l = LineString([edge_start, edge_end])
-    closest = nearest_points(l, p)[0]
-    return np.array(closest.coords[0])
+    dist_outside = distance_transform_edt(~mask, sampling=dx)
+    dist_inside = distance_transform_edt(mask, sampling=dx)
+    sdf_grid = dist_outside - dist_inside
+    grad_y, grad_x = np.gradient(sdf_grid, dx)
+    
+    return sdf_grid, grad_x, grad_y
 
 
-def find_nearest_edge(point, edges):
-    best_distance = float('inf')
-    best_edge = None
-    for edge in edges:
-        closest_points = find_closest_point_on_edge(point, edge[0], edge[1])
-        dist = np.linalg.norm(point - closest_points)
-        if dist < best_distance:
-            best_distance = dist
-            best_edge = edge
-    return best_edge, best_distance
+def sample_sdf(grid, this):
+    res = grid.shape[0]
+    iy = this[1] * (res - 1)
+    ix = this[0] * (res - 1)
+
+    return map_coordinates(input=grid, coordinates=(iy, ix), order=1, mode='nearest')

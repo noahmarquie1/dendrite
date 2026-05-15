@@ -6,6 +6,30 @@ import seaborn as sns
 from mesh_generation.geometry import fetch_neighbors
 
 
+def _calculate_pdf_data(mesh_points, approx_step, bin_amt):
+    """Helper function to quickly calculate the PDF using NumPy vectorization."""
+    mesh_tree = KDTree(mesh_points)
+    
+    # 1. Vectorized Query: Ask for all neighbors of all points simultaneously
+    distances, _ = mesh_tree.query(mesh_points, k=8)
+    
+    # Flatten the array and mask out distances effectively equal to 0
+    distances = distances.flatten()
+    distances = distances[distances > 1e-8]
+    
+    # 2. Vectorized Binning: Use np.histogram instead of slow Python loops
+    max_dist = approx_step * 2
+    counts, _ = np.histogram(distances, bins=bin_amt, range=(0, max_dist))
+    
+    # Convert raw counts to probabilities
+    if len(distances) > 0:
+        probabilities = counts / len(distances)
+    else:
+        probabilities = np.zeros(bin_amt)
+        
+    return probabilities
+
+
 def get_single_point_avg_dist(center, neighbors):
     dist_sum = 0
     for neighbor in neighbors:
@@ -51,7 +75,7 @@ def plot_single_point_pdf(p, mesh_points, approx_step, ax=None, color="lightblue
     return ax
 
 
-def plot_mesh_pdf(mesh_points, approx_step, bin_amt=20, ax=None, color="lightblue"):
+def plot_mesh_pdf(mesh_points, approx_step, bin_amt=20, ax=None, color="lightblue", chart_details=True):
     mesh_tree = KDTree(mesh_points)
     distances = np.array([])
     for point in mesh_points:
@@ -71,10 +95,26 @@ def plot_mesh_pdf(mesh_points, approx_step, bin_amt=20, ax=None, color="lightblu
     # plot PDF
     if ax is None:
         ax = plt.gca()
-    for i, bin in enumerate(bins):
-        ax.bar(i*bin_size, bin / total_samples, width=bin_size, color=color, edgecolor="black")
-    ax.set_xlabel("Distance")
-    ax.set_ylabel("Count")
-    ax.set_title("Mesh PDF")
-    return ax
+    
+    probabilities = _calculate_pdf_data(mesh_points, approx_step, bin_amt)
+    max_dist = approx_step * 2
+    bin_size = max_dist / bin_amt
+    
+    x_positions = np.arange(bin_amt) * bin_size
+    bars = ax.bar(x_positions, probabilities, width=bin_size, color=color, edgecolor="black", align='edge')
+        
+    if chart_details:
+        ax.set_xlabel("Distance")
+        ax.set_ylabel("Count")
+        ax.set_title("Mesh PDF")
+        
+    return bars
 
+
+def update_mesh_pdf(bars, mesh_points, approx_step, bin_amt=20):
+    """Calculates new data and instantly updates the heights of existing bars."""
+    new_probabilities = _calculate_pdf_data(mesh_points, approx_step, bin_amt)
+    
+    # Instantly update the height of every existing rectangle
+    for bar, new_height in zip(bars, new_probabilities):
+        bar.set_height(new_height)
