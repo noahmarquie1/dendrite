@@ -34,9 +34,8 @@ solver = PointCloudSolver(
     force_multiplier=FORCE_MULTIPLIER,
     width=6,
     height=6,
-    drag_coefficient=DRAG_COEF,
-    pdfs=False,
-    pdf_interval=FPS,
+    drag_coeff=DRAG_COEF,
+    plots=['pdf-anim', 'max-vel', 'pdf-final'],
     polygon=composite_rect,
     fps=FPS,
     deg=2,
@@ -44,7 +43,8 @@ solver = PointCloudSolver(
 
 solver.solve(
     max_step=step, 
-    steps=int(1e3), 
+    steps=int(1e2), 
+    out="anim.gif"
     #state0=state0
 )
 solver.animate()

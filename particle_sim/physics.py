@@ -2,7 +2,6 @@ import numpy as np
 from random import choice
 from shapely.geometry import Polygon, Point, LineString
 from particle_sim.geometry import generate_sdf, sample_sdf
-
 import jax 
 import jax.numpy as jnp
 
@@ -43,12 +42,6 @@ class PhysicsHandler:
         return dir * mag
 
 
-    def smooth_clamp(self, force, max):
-        f_norm = np.linalg.norm(force)
-        clamped = force / np.sqrt(1.0 + (f_norm / max) ** 2)
-        return clamped
-
-
     def lj_potential(self, this, other):
         r2 = jnp.sum((this - other) ** 2)
         attr = (r2 + 1e-2) ** -6
@@ -73,7 +66,6 @@ class PhysicsHandler:
 
     def soft_wall_repulsion(self, this):
         dist = sample_sdf(grid=self.sdf, this=this, min_p=self.min_p, max_p=self.max_p)
-
         nx = sample_sdf(grid=self.grad_x, this=this, min_p=self.min_p, max_p=self.max_p)
         ny = sample_sdf(grid=self.grad_y, this=this, min_p=self.min_p, max_p=self.max_p)
         normal = jnp.array([nx, ny])

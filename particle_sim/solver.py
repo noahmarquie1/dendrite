@@ -7,10 +7,8 @@ import shapely
 
 
 class PointCloudSolver:
-    def __init__(self, dpi=100, width=5, height=4, n_bodies=1,
-                 force_multiplier=100, drag_coefficient=0.01,
-                 pdfs=False, pdf_interval=0, polygon=None, 
-                 fps=15, deg=2):
+    def __init__(self, dpi=100, width=5, height=4, n_bodies=1, force_multiplier=100, drag_coeff=0.01,
+                 plots=None, polygon=None, fps=15, deg=2):
 
         self.solution = np.empty((0, 2))
         self.dpi = dpi
@@ -18,29 +16,19 @@ class PointCloudSolver:
         self.height = height
         self.n_bodies = n_bodies
         self.force_multiplier = force_multiplier
-        self.drag_coefficient = drag_coefficient
+        self.drag_coefficient = drag_coeff
         self.scatter = plt.scatter(np.zeros((self.n_bodies, 1)), np.zeros((self.n_bodies, 1)), c='blue', marker='o')
         self.polygon = polygon
 
         self.phys = PhysicsHandler(
-            n_bodies = self.n_bodies,
-            force_multiplier = self.force_multiplier,
-            drag_coefficient = self.drag_coefficient,
-            width = self.width,
-            height = self.height,
-            polygon=self.polygon,
-            deg=deg
+            n_bodies = self.n_bodies, force_multiplier = self.force_multiplier,
+            drag_coefficient = self.drag_coefficient, width = self.width,
+            height = self.height, polygon=self.polygon, deg=deg
         )
 
         self.anim = AnimationHandler(
-            n_bodies=self.n_bodies,
-            width=self.width,
-            height=self.height,
-            polygon=polygon,
-            dpi=self.dpi,
-            pdfs=pdfs,
-            pdf_interval=pdf_interval,
-            fps=fps
+            n_bodies=self.n_bodies, width=self.width, height=self.height,
+            polygon=polygon, dpi=self.dpi, plots=plots, fps=fps,
         )
 
 
@@ -97,11 +85,14 @@ class PointCloudSolver:
         return res.flatten()
 
 
-    def solve(self, state0=None, max_step=0.05, steps=5):
+    def solve(self, state0=None, max_step=0.05, steps=5, out=None):
         print("Beginning simulation.")
         state0 = self.generate_random_initial_state() if state0 is None else state0
         y0 = state0.flatten()
         self.solution = np.zeros((steps, state0.shape[0], state0.shape[1]))
+
+        if out:
+            self.anim.out = out
 
         solver = RK45(
             lambda t, y: self.calculate_derivatives(state=y),
@@ -145,7 +136,7 @@ if __name__ == '__main__':
         force_multiplier=REPULSIVE_STRENGTH,
         width=WIDTH,
         height=HEIGHT,
-        drag_coefficient=DRAG_COEF,
+        drag_coeff=DRAG_COEF,
     )
     solver.solve(h=h, steps=steps)
     solver.animate()

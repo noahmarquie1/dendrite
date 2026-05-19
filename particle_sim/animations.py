@@ -5,8 +5,20 @@ from shapely.plotting import plot_polygon
 from shapely.geometry import Point
 from mesh_generation.stats import plot_mesh_pdf, update_mesh_pdf
 
+
+class Graphic:
+    def __init__(self, anim: bool, ax, func):
+        self.ax = ax
+        self.anim = anim
+        if anim:
+            self.func = lambda setup, idx: func(setup=setup, ax=ax, idx=idx)
+        else:
+            self.func = lambda: func(ax=ax)
+
+
+
 class AnimationHandler:
-    def __init__(self, n_bodies=1, width=6, height=4, dpi=100, fps=30, pdfs=True, pdf_interval=1, polygon=None):
+    def __init__(self, n_bodies=1, width=6, height=4, dpi=100, fps=30, plots=None, polygon=None):
         self.n_bodies = n_bodies
         self.dpi = dpi
         self.fps = fps
@@ -14,19 +26,35 @@ class AnimationHandler:
         self.width = width
         self.height = height
         self.scatter = None
-        self.solution = np.empty((0, n_bodies, 2))
-        self.pdfs = pdfs
-        self.pdf_interval = pdf_interval
-        self.primary_ax = self.configure_plot()
+        self.sol = np.empty((0, n_bodies, 2))
+        self.out = "/animation.mp4"
 
-        self.approx_dist = max(self.width, self.height) / np.sqrt(n_bodies) # rough approximate of ideal distance
+        self.plots = plots # list - allows "pdf-anim", "pdf-final", "max-vel" (max 3 allowed)
+        self.graphics = []
+        self.plot_interval = int(self.fps / 2)
+        self.primary_ax = self.configure_plot()
+        self.mesh_pdf_bars = None
+        self.approx_dist = max(self.width, self.height) / np.sqrt(n_bodies) # rough approximate of ideal distance - used for plotting
+
 
     def configure_plot(self):
-        if self.pdfs:
+        if self.plots:
             self.fig, self.ax = plt.subplots(2, 2, dpi=self.dpi)
             primary_ax = self.ax[0,0]
             primary_ax.set_aspect('equal')
             self.fig.set_size_inches(self.width * 2, self.height * 2)
+
+            positions = [[0, 1], [1, 0], [1, 1]] 
+            if 'pdf-anim' in self.plots:
+                self.graphics.append(Graphic(anim=True, func=self.update_pdf_anim_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
+                positions = positions[1:]
+            if 'pdf-final' in self.plots:
+                self.graphics.append(Graphic(anim=False, func=self.setup_pdf_final_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
+                positions = positions[1:]
+            if 'max-vel' in self.plots:
+                self.graphics.append(Graphic(anim=False, func=self.setup_max_vel_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
+                positions = positions[1:]
+
         else:
             self.fig, self.ax = plt.subplots(1, 1, dpi=self.dpi)
             primary_ax = self.ax
@@ -43,60 +71,94 @@ class AnimationHandler:
         return primary_ax
     
 
-    def avg_dist_deviation(self, i):
-        diff = self.solution[i, :self.n_bodies, :] - self.solution[i-1, :self.n_bodies, :]
-        dists = np.sqrt(np.sum(diff**2, axis=1))
-        avg_dist = np.mean(dists)
-        return avg_dist
+    def update_pdf_anim_graphic(self, setup: bool, ax, idx=None):
+        if setup:
+            ax.set_title("Mesh PDF Evolution")
+            ax.set_xlabel("Distance")
+            ax.set_ylabel("Probability")
+            mesh_pdf_bars = plot_mesh_pdf(
+                mesh_points=self.sol[0, :self.n_bodies, :], 
+                approx_step=self.approx_dist, 
+                ax=ax, 
+                color='lightblue', 
+                chart_details=False
+            )
+            ax.set_ylim(0, 1)
+            self.mesh_pdf_bars = mesh_pdf_bars
+        else:
+            update_mesh_pdf(bars=self.mesh_pdf_bars, mesh_points=self.sol[idx, :self.n_bodies, :], approx_step=self.approx_dist)
+                
+
+    def setup_pdf_final_graphic(self, ax):
+        ax.set_title("Final PDF")
+        ax.set_xlabel("Distance")
+        ax.set_ylabel("Probability")
+        ax.set_ylim(0, 1)
+        plot_mesh_pdf(self.sol[-1, :self.n_bodies, :], approx_step=self.approx_dist, ax=ax, color='lightblue', chart_details=False)
 
 
-    def _animate(self, i, interval, mesh_pdf_bars=None):
-        positions = self.solution[i*interval, :self.n_bodies, :]
+    def setup_max_vel_graphic(self, ax):
+        ax.set_title("Max Velocity vs. Time")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Velocity")
+
+        t = range(self.sol.shape[0])
+        max_vels = np.zeros_like(t)
+
+        for i in t:
+            vel_series = self.sol[i, self.n_bodies:, :]
+            vel_series = [np.linalg.norm(vel) for vel in vel_series]
+            max_vel = np.max(vel_series)
+            max_vels[i] = max_vel
+
+        ax.plot(t, max_vels)
+
+
+    def _animate(self, i, interval):
+        positions = self.sol[i*interval, :self.n_bodies, :]
         self.scatter.set_offsets(positions)
         self.info_text.set_text((
-            f"Step: {i*interval}/{len(self.solution)}, {i*interval/len(self.solution)*100:.1f}%\n"
+            f"Step: {i*interval}/{len(self.sol)}, {i*interval/len(self.sol)*100:.1f}%\n"
         ))
-        if self.pdfs and (i+1) % self.pdf_interval == 0:
-            update_mesh_pdf(bars=mesh_pdf_bars, mesh_points=positions, approx_step=self.approx_dist)
+
+        if self.plots and i % self.plot_interval == 0:
+            for graphic in self.graphics:
+                graphic.func(setup=False, idx=i)
                 
         return self.scatter,
 
 
     def animate(self, solution):
-        self.solution = solution
-        mesh_pdf_bars = None
-
+        self.sol = solution
+        self.ax_map = {}
         self.scatter = self.primary_ax.scatter(solution[0, :self.n_bodies, 0], solution[0, :self.n_bodies, 1], c='blue', marker='o')
-        if self.pdfs:
-            # Plot initial PDF in evolution chart
-            self.ax[0,1].set_title("Mesh PDF Evolution")
-            self.ax[0,1].set_xlabel("Distance")
-            self.ax[0,1].set_ylabel("Probability")
-            mesh_pdf_bars = plot_mesh_pdf(solution[0, :self.n_bodies, :], approx_step=self.approx_dist, ax=self.ax[0,1], color='lightblue', chart_details=False)
-            self.ax[0,1].set_ylim(0, 1)
-            # Plot distance evolution
-            dist_evolution_points = [i*self.pdf_interval + 1 for i in range(int(len(solution) / self.pdf_interval) - 1)]
-            self.ax[1,0].plot(dist_evolution_points, [self.avg_dist_deviation(i) for i in dist_evolution_points], color='green')
-            self.ax[1,0].set_title("Rate of Change of Positions vs. Time")
-            self.ax[1,0].set_xlabel("Time")
-            self.ax[1,0].set_ylabel("Average Distance Deviation")
 
-            # Plot final pdf in bottom left
-            self.ax[1,1].set_title("Final PDF")
-            self.ax[1,1].set_xlabel("Distance")
-            self.ax[1,1].set_ylabel("Probability")
-            plot_mesh_pdf(solution[-1, :self.n_bodies, :], approx_step=self.approx_dist, ax=self.ax[1,1], color='lightblue', chart_details=False)
-            self.ax[1,1].set_ylim(0, 1)
+        for graphic in self.graphics:
+            if graphic.anim:
+                graphic.func(setup=True, idx=None)
+            else:
+                graphic.func()
+        self.graphics = [graphic for graphic in self.graphics if graphic.anim] # retains only animated graphics for later use
 
-        self.info_text = self.primary_ax.text(0.95, 0.95, '', transform=self.primary_ax.transAxes, 
-                    ha='right', va='top', fontsize=12,
-                    bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray'))
+        self.info_text = self.primary_ax.text(
+            0.95, 0.95, '', transform=self.primary_ax.transAxes, 
+            ha='right', va='top', fontsize=12,
+            bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray')
+        )
         
         desired_length = 20
         frames = desired_length * self.fps
-        interval = int(self.solution.shape[0] / frames)
-        out = './animation.mp4'
+        interval = int(self.sol.shape[0] / frames)
 
-        anim = FuncAnimation(self.fig, lambda i: self._animate(i, interval, mesh_pdf_bars), frames=frames)
-        anim.save(out, writer='ffmpeg', dpi=self.dpi, fps=self.fps)
-        print(f"Animation saved as {out}.")
+        if interval == 0: # handles edge case for small animations
+            interval = 1
+            frames = self.sol.shape[0]
+
+        format = self.out.split('.')[1]
+        if format == 'gif':
+            writer = 'pillow'
+        else:
+            writer = 'ffmpeg'
+        anim = FuncAnimation(self.fig, lambda i: self._animate(i, interval), frames=frames)
+        anim.save(filename=self.out, writer=writer, dpi=self.dpi, fps=self.fps)
+        print(f"Animation saved as {self.out}.")
