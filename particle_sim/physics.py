@@ -2,7 +2,6 @@ import numpy as np
 from random import choice
 from shapely.geometry import Polygon, Point, LineString
 from particle_sim.geometry import generate_sdf, sample_sdf
-import jax 
 import jax.numpy as jnp
 
 
@@ -27,7 +26,7 @@ class PhysicsHandler:
         sdf_grid, grad_x, grad_y, min_p, max_p = generate_sdf(polygon)
 
         # JAX setup
-        self.lj_kernel = jax.jit(jax.grad(self.lj_potential))
+        #self.lj_kernel = jax.jit(jax.grad(self.lj_potential))
         self.sdf = jnp.array(sdf_grid)
         self.grad_x = jnp.array(grad_x)
         self.grad_y = jnp.array(grad_y)
@@ -35,37 +34,15 @@ class PhysicsHandler:
         self.max_p = max_p
 
 
-    # Base Logic and Physics
-    def unit(self, start, end):
-        return (end - start) / np.linalg.norm(end - start)
+    # Base Physics
+    def inter_point_repulsion(self, this, other):
+        delta = (this - other)
+        r2 = jnp.sum(delta ** 2)
+        rep = (r2 + 1e-2) ** -3 # Without the sqrt(), this acts as a force with 6 exponent (highly dissipative)
 
-
-    def standard_repulsion(self, this, other):
-        dir = self.unit(start=other, end=this)
-        mag = 1 / ((np.linalg.norm(this - other) + 1e-3) ** 2)
-        return dir * mag
-
-
-    def lj_potential(self, this, other):
-        r2 = jnp.sum((this - other) ** 2)
-        rep = (r2 + 1e-2) ** -2
-        return -4 * rep
-
-
-    def lj_force(self, this, other):
-        force = np.array(self.lj_kernel(this, other))
-        return force * self.p_to_p_coeff
+        dir = delta / np.linalg.norm(delta)
+        return rep * dir
     
-
-    def standard_wall_repulsion(self, this):
-        p = Point(this)
-        if not self.polygon.contains(p):
-            center = np.array([self.polygon.centroid.x, self.polygon.centroid.y])
-            dir = (center - this) / np.linalg.norm(center - this)
-            dist = p.distance(self.polygon)
-            return 1e2 * self.force_multiplier * dist * dir # roughly one order of magnitude higher than other forces
-        return np.zeros_like(this)
-
 
     def soft_wall_repulsion(self, this):
         dist = sample_sdf(grid=self.sdf, this=this, min_p=self.min_p, max_p=self.max_p)
@@ -73,14 +50,14 @@ class PhysicsHandler:
         ny = sample_sdf(grid=self.grad_y, this=this, min_p=self.min_p, max_p=self.max_p)
         normal = jnp.array([nx, ny])
         
-        mag = (10*dist + 1e-7) ** -6
+        mag = (dist + 1e-2) ** -6
         force = -mag * normal
         return force
 
 
     # Functions called each iteration
     def calculate_repulsive_force(self, this, other):
-        return self.lj_force(this, other)
+        return self.inter_point_repulsion(this, other)
     
 
     def calculate_wall_force(self, this):

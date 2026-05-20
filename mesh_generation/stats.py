@@ -7,20 +7,14 @@ from mesh_generation.geometry import fetch_neighbors
 
 
 def _calculate_pdf_data(mesh_points, approx_step, bin_amt):
-    """Helper function to quickly calculate the PDF using NumPy vectorization."""
-    mesh_tree = KDTree(mesh_points)
+    mesh_tree = KDTree(mesh_points, boxsize=[1.0, 1.0])
+    distances, _ = mesh_tree.query(mesh_points, k=9)
     
-    # 1. Vectorized Query: Ask for all neighbors of all points simultaneously
-    distances, _ = mesh_tree.query(mesh_points, k=8)
-    
-    # Flatten the array and mask out distances effectively equal to 0
     distances = distances.flatten()
-    distances = distances[distances > 1e-8]
+    distances = distances[distances > 1e-4]
     
     max_dist = approx_step
     counts, _ = np.histogram(distances, bins=bin_amt, range=(0, max_dist))
-    
-    # Convert raw counts to probabilities
     if len(distances) > 0:
         probabilities = counts / len(distances)
     else:

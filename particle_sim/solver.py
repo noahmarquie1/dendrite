@@ -20,7 +20,7 @@ class PointCloudSolver:
         self.scatter = plt.scatter(np.zeros((self.n_bodies, 1)), np.zeros((self.n_bodies, 1)), c='blue', marker='o')
         self.polygon = polygon
 
-        self.vel_threshold = 2
+        self.vel_threshold = 0.5
 
         self.phys = PhysicsHandler(
             n_bodies = self.n_bodies, force_multiplier = self.force_multiplier,
@@ -121,7 +121,7 @@ class PointCloudSolver:
                 max_vel = np.max(vel_series)
                 if max_vel <= self.vel_threshold:
                     all_below = True
-                    for iter in range(i - 4, i + 1):
+                    for iter in range(i - 10, i + 1):
                         iter = max(0, iter)
                         if self.find_max_vel_at_state(self.solution[iter]) > self.vel_threshold:
                             all_below = False

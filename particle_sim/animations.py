@@ -205,6 +205,7 @@ class AnimationHandler:
         desired_length = 20
         self.frames = int(desired_length * self.fps) - 1
         self.interval = self.sol.shape[0] // self.frames
+        self.interval = max(self.interval, 1)
         self.frames = self.sol.shape[0] // self.interval
 
         if self.interval == 0: # handles edge case for small animations

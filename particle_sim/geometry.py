@@ -33,5 +33,4 @@ def sample_sdf(grid, this, min_p, max_p):
 
     iy = ((this[1] - min_p) / (max_p - min_p)) * (res - 1)
     ix = ((this[0] - min_p) / (max_p - min_p)) * (res - 1)
-
     return map_coordinates(input=grid, coordinates=(iy, ix), order=1, mode='nearest')
