@@ -34,9 +34,8 @@ solver = PointCloudSolver(
 sol = solver.solve(
     max_step=step, 
     steps=int(1e3), 
-    out="./animation.mp4",
 )
-solver.animate()
+solver.animate(out="./anim.gif")
 
 plt.close('all')
 final_points = np.vstack([square_mesh.edge_points, sol[-1][:N_BODIES]])

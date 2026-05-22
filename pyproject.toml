@@ -14,7 +14,7 @@ dependencies = [
     "shapely==2.1.2",
     "jax==0.10.0",
     "diffrax==0.7.2",
-    "setuptools==82.0.1",
+    "argparse==1.4.0"
 ]
 
 [tool.setuptools.packages.find]
