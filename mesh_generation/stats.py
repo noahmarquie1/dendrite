@@ -104,7 +104,6 @@ def plot_mesh_pdf(mesh_points, approx_step, bin_amt=20, ax=None, color="lightblu
 
 
 def update_mesh_pdf(bars, mesh_points, approx_step, bin_amt=20):
-    """Calculates new data and instantly updates the heights of existing bars."""
     new_probabilities = _calculate_pdf_data(mesh_points, approx_step, bin_amt)
     
     # Instantly update the height of every existing rectangle

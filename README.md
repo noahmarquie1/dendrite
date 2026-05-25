@@ -23,10 +23,8 @@ pip install -e .
 To generate a mesh, use the following command.
 
 ```
-dendrite gen --static-poly {PATH} --dynamic-poly {PATH} --anim {WRITE_PATH} --csv {WRITE_PATH} --png {WRITE_PATH}
+dendrite gen --static-poly {PATH} --dynamic-poly {PATH} --anim --csv --png --extrude --out-dir {PATH}
 ```
-
-For optional flags anim, csv, and png, either a directory or full path is accepted.
 
 
 ## Tech Stack

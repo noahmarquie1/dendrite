@@ -39,7 +39,10 @@ class Mesh:
         edge_vertices = np.array(poly.exterior.coords)
         edge_points = edge_vertices
         for i in range(len(edge_vertices) - 1):
-            line = make_line(edge_vertices[i], edge_vertices[i+1], step_size=self.step_size)
+            edge_length = np.linalg.norm(edge_vertices[i+1]-edge_vertices[i])
+            num_steps = int(edge_length / self.step_size)
+
+            line = make_line(edge_vertices[i], edge_vertices[i+1], num_steps=num_steps)
             edge_points = np.vstack([edge_points, line])
         return edge_points
 

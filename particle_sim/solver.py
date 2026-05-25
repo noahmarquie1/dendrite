@@ -8,52 +8,17 @@ import jax
 import jax.numpy as jnp
 
 
-# CONSTANTS
-DRAG_COEFF = 100
-
-# JAX-Optimized Forces
-@jax.jit
-def inter_point_repulsion(delta):
-        r2 = jnp.sum(delta ** 2)
-        rep = (r2 + 1e-7) ** -3 # Without the sqrt(), this acts as a force with 6 exponent (highly dissipative)
-
-        norm = jnp.linalg.norm(delta)
-        dir = jnp.where(norm > 1e-8, delta / norm, jnp.zeros_like(delta))
-        return rep * dir
-
-@jax.jit
-def soft_wall_repulsion(this, sdf, grad_x, grad_y, min_p, max_p):
-    dist = sample_sdf(grid=sdf, this=this, min_p=min_p, max_p=max_p)
-    nx = sample_sdf(grid=grad_x, this=this, min_p=min_p, max_p=max_p)
-    ny = sample_sdf(grid=grad_y, this=this, min_p=min_p, max_p=max_p)
-    normal = jnp.array([nx, ny])
-
-    dist_sq = dist ** 2    
-    mag = (dist_sq + 1e-7) ** -3
-    force = -mag * normal
-    return force
-
-@jax.jit
-def drag(vel):
-    speed = jnp.linalg.norm(vel)
-    return -DRAG_COEFF * vel * speed
-
-
 # Point Cloud Solver Class
 class PointCloudSolver:
-    def __init__(self, dpi=100, width=5, height=4, n_bodies=1, force_multiplier=100, drag_coeff=0.01,
-                 plots=None, polygon=None, fps=15):
+    def __init__(self, dpi=100, width=6, height=6, n_bodies=1, plots=None, polygon=None, fps=15):
 
         self.solution = np.empty((0, 2))
         self.dpi = dpi
         self.width = width
         self.height = height
         self.n_bodies = n_bodies
-        self.force_multiplier = force_multiplier
-        self.drag_coefficient = drag_coeff
         self.scatter = plt.scatter(np.zeros((self.n_bodies, 1)), np.zeros((self.n_bodies, 1)), c='blue', marker='o')
         self.polygon = polygon
-
         self.vel_threshold = 0.5
         self.anim = AnimationHandler(
             n_bodies=self.n_bodies, width=self.width, height=self.height,
@@ -62,18 +27,51 @@ class PointCloudSolver:
 
         sdf_grid, grad_x, grad_y, min_p, max_p = generate_sdf(polygon)
 
-        # JAX setup
-        #self.lj_kernel = jax.jit(jax.grad(self.lj_potential))
+        # Physics and JAX setup
+        L = np.sqrt((polygon.bounds[2] - polygon.bounds[0])**2 + (polygon.bounds[3] - polygon.bounds[1])**2)
+        alpha = 5
+        beta = 1e3
+
+        R = alpha
+        D = beta / L
+        self.T = np.sqrt((L ** 7) / alpha)
+
         sdf = jnp.array(sdf_grid)
         grad_x = jnp.array(grad_x)
         grad_y = jnp.array(grad_y)
 
-        point_force = lambda v: inter_point_repulsion(v)
-        wall_force = lambda v: soft_wall_repulsion(v, sdf, grad_x, grad_y, min_p, max_p)
+        point_force = jax.jit(lambda v: self.inter_point_repulsion(v, R))
+        wall_force = jax.jit(lambda v: self.soft_wall_repulsion(v, sdf, grad_x, grad_y, min_p, max_p, R))
 
         self.point_vmap = jax.vmap(jax.vmap(point_force))
         self.wall_vmap = jax.vmap(wall_force)
-        self.drag_vmap = jax.vmap(drag)
+        self.drag_vmap = jax.vmap(jax.jit(lambda v: self.drag(v, D)))
+
+
+    def inter_point_repulsion(self, delta, R):
+        r2 = jnp.sum(delta ** 2)
+        rep = (r2 + 1e-7) ** -3 # Without the sqrt(), this acts as a force with 6 exponent (highly dissipative)
+
+        norm = jnp.linalg.norm(delta)
+        dir = jnp.where(norm > 1e-8, delta / norm, jnp.zeros_like(delta))
+        return R * rep * dir
+
+
+    def soft_wall_repulsion(self, this, sdf, grad_x, grad_y, min_p, max_p, R):
+        dist = sample_sdf(grid=sdf, this=this, min_p=min_p, max_p=max_p)
+        nx = sample_sdf(grid=grad_x, this=this, min_p=min_p, max_p=max_p)
+        ny = sample_sdf(grid=grad_y, this=this, min_p=min_p, max_p=max_p)
+        normal = jnp.array([nx, ny])
+
+        dist_sq = dist ** 2    
+        mag = (dist_sq + 1e-7) ** -3
+        force = -mag * R * normal
+        return force
+
+
+    def drag(self, vel, D):
+        speed = jnp.linalg.norm(vel)
+        return -D * vel * speed
 
 
     def add_polygon_bounds(self, polygon):
@@ -132,13 +130,15 @@ class PointCloudSolver:
         return jnp.vstack([vel_i, total_force]).flatten()
 
 
-    def solve(self, state0=None, max_step=0.05, steps=5, out=None):
+    def solve(self, state0=None, steps=5, out=None):
         print("Beginning simulation.")
         state0 = self.generate_random_initial_state() if state0 is None else state0
         y0 = state0.flatten()
 
         self.solution = np.zeros((steps, state0.shape[0], state0.shape[1]))
         func = jax.jit(lambda t,y: self.calculate_derivatives(y))
+        max_step = self.T * 1e-2
+
         solver = RK45(func, 0, y0=y0, t_bound=max_step * (steps + 1), max_step=max_step)
 
         for i in range(steps):

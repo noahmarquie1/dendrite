@@ -11,11 +11,6 @@ DPI = 75
 N_BODIES = 100
 DRAG_COEF = 100
 FPS = 15
-FORCE_MULTIPLIER = 1
-
-T = 6
-step = T * 1e-2
-
 
 # Static Geometry 
 square_1 = load_polygon("./data/polygons/mix_square_1.csv")
@@ -32,17 +27,14 @@ mesh.inner_points = np.vstack([mesh.inner_points, mesh.edge_fill(Polygon(square_
 solver = PointCloudSolver(
     dpi=DPI,
     n_bodies=N_BODIES,
-    force_multiplier=FORCE_MULTIPLIER,
     width=6,
     height=6,
-    drag_coeff=DRAG_COEF,
     plots=None,
     polygon=Polygon(square_2),
     fps=FPS,
 )
 
 sol = solver.solve(
-    max_step=step, 
     steps=int(1e3), 
 )
 solver.anim.add_static_points(mesh.inner_points, "red")
@@ -50,7 +42,7 @@ solver.anim.add_static_points(mesh.edge_points, "blue")
 
 plt.close("all")
 fig, ax = plt.subplots(1,1)
-solver.animate(out="./anim.gif", color="purple")
+solver.animate(out="anim.gif", color="purple")
 
 final_points = np.vstack([sol[-1][:N_BODIES], mesh.inner_points, mesh.edge_points])
 save_polygon(final_points, "./data/meshes/mix_ex.csv")
@@ -58,6 +50,6 @@ save_polygon(final_points, "./data/meshes/mix_ex.csv")
 ax.set_aspect("equal")
 mesh.visualize(ax=ax)
 ax.scatter(sol[-1][:N_BODIES, 0], sol[-1][:N_BODIES, 1], s=4, c='purple')
-plt.savefig("./mesh.png")
+plt.savefig("mesh.png")
 
 
