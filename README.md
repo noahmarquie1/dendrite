@@ -31,5 +31,5 @@ dendrite gen --static-poly {PATH} --dynamic-poly {PATH} --anim --csv --png --ext
 
 - Language: Python 3.12
 - Key Libraries: SciPy, JAX, NumPy, Matplotlib, Shapely
-- Tools: Docker (Soon), Git (GitHub)
+- Tools: Git Version Control (GitHub)
 

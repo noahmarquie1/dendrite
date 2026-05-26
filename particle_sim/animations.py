@@ -211,7 +211,7 @@ class AnimationHandler:
     def animate(self, solution, color="blue"):
         self.sol = solution
         self.ax_map = {}
-        self.scatter = self.primary_ax.scatter(solution[0, :self.n_bodies, 0], solution[0, :self.n_bodies, 1], c=color, marker='o')
+        self.scatter = self.primary_ax.scatter(solution[0, :self.n_bodies, 0], solution[0, :self.n_bodies, 1], s=2, c=color, marker='o')
 
         desired_length = 5
         self.frames = int(desired_length * self.fps) - 1

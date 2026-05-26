@@ -19,18 +19,14 @@ class PointCloudSolver:
         self.n_bodies = n_bodies
         self.scatter = plt.scatter(np.zeros((self.n_bodies, 1)), np.zeros((self.n_bodies, 1)), c='blue', marker='o')
         self.polygon = polygon
-        self.vel_threshold = 0.5
-        self.anim = AnimationHandler(
-            n_bodies=self.n_bodies, width=self.width, height=self.height,
-            polygon=polygon, dpi=self.dpi, plots=plots, fps=fps, vel_threshold=self.vel_threshold
-        )
-
         sdf_grid, grad_x, grad_y, min_p, max_p = generate_sdf(polygon)
 
-        # Physics and JAX setup
+        # Physics and JAX Setup
         L = np.sqrt((polygon.bounds[2] - polygon.bounds[0])**2 + (polygon.bounds[3] - polygon.bounds[1])**2)
         alpha = 5
         beta = 1e3
+
+        self.vel_threshold = 0.05 * L
 
         R = alpha
         D = beta / L
@@ -46,6 +42,12 @@ class PointCloudSolver:
         self.point_vmap = jax.vmap(jax.vmap(point_force))
         self.wall_vmap = jax.vmap(wall_force)
         self.drag_vmap = jax.vmap(jax.jit(lambda v: self.drag(v, D)))
+
+        # Animator Setup
+        self.anim = AnimationHandler(
+            n_bodies=self.n_bodies, width=self.width, height=self.height,
+            polygon=polygon, dpi=self.dpi, plots=plots, fps=fps, vel_threshold=self.vel_threshold
+        )
 
 
     def inter_point_repulsion(self, delta, R):
