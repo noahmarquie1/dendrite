@@ -17,7 +17,7 @@ class PointCloudSolver:
         self.width = width
         self.height = height
         self.n_bodies = n_bodies
-        self.scatter = plt.scatter(np.zeros((self.n_bodies, 1)), np.zeros((self.n_bodies, 1)), c='blue', marker='o')
+        #self.scatter = plt.scatter(np.zeros((self.n_bodies, 1)), np.zeros((self.n_bodies, 1)), c='blue', marker='o')
         self.polygon = polygon
         sdf_grid, grad_x, grad_y, min_p, max_p = generate_sdf(polygon)
 

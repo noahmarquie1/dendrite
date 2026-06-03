@@ -1,4 +1,3 @@
-from shapely.plotting import plot_polygon
 import numpy as np
 import matplotlib.pyplot as plt
 from mesh_generation.square_mesh import Rect, SquareMesh
@@ -23,7 +22,7 @@ ax.set_aspect(1)
 for region in mesh.static_regions.values():
     region.visualize(ax)
 ax.scatter(mesh.dynamic_regions[0].filled_points[:, 0], mesh.dynamic_regions[0].filled_points[:, 1], c="green", alpha=0.3)
-ax.scatter(mesh.dynamic_regions[0].boundary_points[:, 0], mesh.dynamic_regions[0].boundary_points[:, 1], c='purple', alpha=0.3)
+ax.scatter(mesh.dynamic_regions[0].connecting_points[:, 0], mesh.dynamic_regions[0].connecting_points[:, 1], c='purple', alpha=0.3)
 
 
 plt.show()

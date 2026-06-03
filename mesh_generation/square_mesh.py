@@ -48,8 +48,9 @@ class DynamicRegionSolver(PointCloudSolver):
 
 
 class DynamicRegion:
-    def __init__(self, boundary_points, n_bodies):
+    def __init__(self, boundary_points, connecting_points, n_bodies):
         self.boundary_points = boundary_points
+        self.connecting_points = connecting_points
         self.mesh = shapely.convex_hull(Polygon(boundary_points))
         self.n_bodies = n_bodies
         self.solver = DynamicRegionSolver(polygon=self.mesh, n_bodies=self.n_bodies, region=self)
@@ -59,13 +60,10 @@ class DynamicRegion:
         plt.close()
         plt.scatter(self.boundary_points[:, 0], self.boundary_points[:, 1], c='red')
         plt.scatter(self.filled_points[:, 0], self.filled_points[:, 1], c='blue')
-        plot_polygon(self.mesh)
 
     def fill_region(self):
-        sol = self.solver.solve(steps=int(2e3))
+        sol = self.solver.solve(steps=int(5e3))
         self.filled_points = sol[-1][:self.n_bodies]
-        self.visualize()
-        plt.show()
 
 
 # Mesh Class
@@ -78,19 +76,12 @@ class SquareMesh:
         self.dynamic_regions: list[DynamicRegion] = []
 
     
-    def update_static_regions(self, rects: list[Rect]):
-        for rect in rects:
-            static_points = rect.points
-            if rect in self.intersections.keys():
-                for dynamic_region in self.intersections[rect]:
-                    mask = [
-                        (dynamic_region.mesh.distance(Point(pt)) > 1e-7) and 
-                        (not self.pt_in_array(pt, dynamic_region.boundary_points)) 
-                        for pt in static_points
-                    ]
-                    static_points = static_points[mask]
-
-            self.static_regions[rect].points = static_points
+    def update_static_regions(self, r1: Rect, r2: Rect):
+        intersection = r1.mesh.intersection(r2.mesh)
+        r1_points = self.remove_intersecting_points(r1.points, intersection)
+        r2_points = self.remove_intersecting_points(r2.points, intersection)
+        self.static_regions[r1].points = r1_points
+        self.static_regions[r2].points = r2_points
 
         
     def add_intersection(self, rects, dynamic_region):
@@ -102,19 +93,27 @@ class SquareMesh:
                     
     
     def pt_in_array(self, pt, arr):
-        return any(np.allclose(pt, arr_p) for arr_p in arr)
+        return any(np.allclose(pt, arr_p, rtol=1e-4, atol=1e-4) for arr_p in arr)
 
 
-    def pt_outside(self, pt, poly):
-        return (not poly.contains(pt)) and poly.distance(pt) > 1e-7
+    def remove_intersecting_points(self, points, shape: Polygon):
+        end_points = []
+        for point in points:
+            if shape.distance(Point(point)) > 1e-7:
+                end_points.append(point)
+
+        return np.array(end_points)
 
 
     def create_dynamic_region(self, s1: Rect, s2: Rect, connecting_points):
         boundary_points = connecting_points
-        intersection = s1.mesh.intersection(s2.mesh)
-        s1_overlapping = s1.points[[intersection.contains(Point(pt)) for pt in s1.points]]
-        s2_overlapping = s2.points[[intersection.contains(Point(pt)) for pt in s2.points]]
+        s1_overlapping = s1.points[[not self.pt_in_array(pt, self.static_regions[s1].points) for pt in s1.points]]
+        s2_overlapping = s2.points[[not self.pt_in_array(pt, self.static_regions[s2].points) for pt in s2.points]]
         overlapping = np.vstack([s1_overlapping, s2_overlapping])
+        non_overlapping = np.vstack([
+            self.static_regions[s1].points,
+            self.static_regions[s2].points
+        ])
 
         for pt in overlapping:
             squares = [s1, s2]
@@ -129,12 +128,14 @@ class SquareMesh:
                     ]
 
                     for cand in candidates:
-                        if intersection.distance(Point(cand)) >= 1e-7:
+                        if self.pt_in_array(cand, non_overlapping) and not self.pt_in_array(cand, boundary_points):
                             boundary_points = np.append(boundary_points, [cand], axis=0)
 
-        dynamic_region = DynamicRegion(boundary_points=boundary_points, n_bodies = s1_overlapping.shape[0])
+        n_bodies = int((s1_overlapping.shape[0] + s2_overlapping.shape[0]) / 2)
+        dynamic_region = DynamicRegion(boundary_points=boundary_points, connecting_points=connecting_points, n_bodies=n_bodies)
         self.dynamic_regions.append(dynamic_region)
         self.add_intersection([s1, s2], dynamic_region)
+        return dynamic_region
         
 
     def add_rect(self, rect_n: Rect): # Main function used outside class
@@ -151,19 +152,8 @@ class SquareMesh:
                     rect.add_edge_point(Point(point))
                     rect_n.add_edge_point(Point(point))
 
+                self.update_static_regions(rect, rect_n)
                 self.create_dynamic_region(rect, rect_n, connecting_points)
-                self.update_static_regions([rect, rect_n])
-        
+                
         self.rects.append(rect_n)
 
-
-
-if __name__ == "__main__":
-    square = Rect(1, 2, step_size=0.2)
-    square.add_edge_point(Point([0.5, 0.1]))
-
-    pt = np.array([0.5, 0.1])
-    square.find_in_row(pt)
-    quit()
-    plot_polygon(square.mesh)
-    plt.show()
