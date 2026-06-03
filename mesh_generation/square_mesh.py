@@ -2,6 +2,7 @@ import numpy as np
 import shapely
 from shapely import Polygon, Point
 from shapely.plotting import plot_polygon
+from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 from particle_sim.solver import PointCloudSolver
 import jax.numpy as jnp
@@ -15,6 +16,7 @@ from geometry.rect_geometry import Rect
 class StaticRegion:
     def __init__(self, points=None):
         self.points = points
+        self.mesh = shapely.convex_hull(Polygon(self.points))
 
     def visualize(self, ax):
         ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.5)
@@ -51,7 +53,7 @@ class DynamicRegion:
     def __init__(self, boundary_points, connecting_points, n_bodies):
         self.boundary_points = boundary_points
         self.connecting_points = connecting_points
-        self.mesh = shapely.convex_hull(Polygon(boundary_points))
+        self.mesh = shapely.concave_hull(Polygon(boundary_points), ratio=0.7)
         self.n_bodies = n_bodies
         self.solver = DynamicRegionSolver(polygon=self.mesh, n_bodies=self.n_bodies, region=self)
         self.filled_points = None
@@ -62,7 +64,11 @@ class DynamicRegion:
         plt.scatter(self.filled_points[:, 0], self.filled_points[:, 1], c='blue')
 
     def fill_region(self):
-        sol = self.solver.solve(steps=int(5e3))
+        plot_polygon(self.mesh)
+        plt.scatter(self.boundary_points[:, 0], self.boundary_points[:, 1])
+        plt.show()
+        sol = self.solver.solve(steps=int(1e3))
+        self.solver.animate("anim.mp4")
         self.filled_points = sol[-1][:self.n_bodies]
 
 
@@ -105,31 +111,30 @@ class SquareMesh:
         return np.array(end_points)
 
 
-    def create_dynamic_region(self, s1: Rect, s2: Rect, connecting_points):
-        boundary_points = connecting_points
-        s1_overlapping = s1.points[[not self.pt_in_array(pt, self.static_regions[s1].points) for pt in s1.points]]
-        s2_overlapping = s2.points[[not self.pt_in_array(pt, self.static_regions[s2].points) for pt in s2.points]]
+    def create_dynamic_region(self, s1: Rect, s2: Rect, connecting_points) -> DynamicRegion:
+        tree_s1_static = KDTree(self.static_regions[s1].points)
+        dists_s1, _ = tree_s1_static.query(s1.points)
+        s1_overlapping = s1.points[dists_s1 > 1e-4]
+
+        tree_s2_static = KDTree(self.static_regions[s2].points)
+        dists_s2, _ = tree_s2_static.query(s2.points)
+        s2_overlapping = s2.points[dists_s2 > 1e-4]
+
         overlapping = np.vstack([s1_overlapping, s2_overlapping])
         non_overlapping = np.vstack([
             self.static_regions[s1].points,
             self.static_regions[s2].points
         ])
 
-        for pt in overlapping:
-            squares = [s1, s2]
-            for s in squares:
-                if self.pt_in_array(pt, s.points):
-                    ri, rj = s.find_in_row(pt)
-                    ci, cj = s.find_in_col(pt)
+        if overlapping.size > 0 and non_overlapping.size > 0:
+            step_size = max(s1.step_size, s2.step_size)
+            tree_overlap = KDTree(overlapping)
+            dists_to_overlap, _ = tree_overlap.query(non_overlapping)
 
-                    candidates = [
-                        s.rows[ri][min(rj+1, len(s.rows[ri]) - 1)], s.rows[ri][max(0, rj-1)],
-                        s.cols[ci][min(cj+1, len(s.cols[ci]) - 1)], s.cols[ci][max(0, cj-1)],
-                    ]
+            boundary_mask = (dists_to_overlap > 1e-4) & (dists_to_overlap <= step_size * 1.5)
+            boundary_points = non_overlapping[boundary_mask]
+            boundary_points = np.vstack([boundary_points, connecting_points])
 
-                    for cand in candidates:
-                        if self.pt_in_array(cand, non_overlapping) and not self.pt_in_array(cand, boundary_points):
-                            boundary_points = np.append(boundary_points, [cand], axis=0)
 
         n_bodies = int((s1_overlapping.shape[0] + s2_overlapping.shape[0]) / 2)
         dynamic_region = DynamicRegion(boundary_points=boundary_points, connecting_points=connecting_points, n_bodies=n_bodies)
@@ -138,7 +143,7 @@ class SquareMesh:
         return dynamic_region
         
 
-    def add_rect(self, rect_n: Rect): # Main function used outside class
+    def add_rect(self, rect_n: Rect, verbose=0): # Main function used outside class
         self.static_regions[rect_n] = StaticRegion(rect_n.points)
 
         for rect in self.rects:
@@ -152,8 +157,13 @@ class SquareMesh:
                     rect.add_edge_point(Point(point))
                     rect_n.add_edge_point(Point(point))
 
+                if verbose:
+                    print("Updating static regions")
                 self.update_static_regions(rect, rect_n)
-                self.create_dynamic_region(rect, rect_n, connecting_points)
+                if verbose:
+                    print("Creating dynamic region")
+                dynamic_region = self.create_dynamic_region(rect, rect_n, connecting_points)
+                dynamic_region.fill_region()
                 
         self.rects.append(rect_n)
 

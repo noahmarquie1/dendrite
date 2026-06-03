@@ -17,16 +17,15 @@ class PointCloudSolver:
         self.width = width
         self.height = height
         self.n_bodies = n_bodies
-        #self.scatter = plt.scatter(np.zeros((self.n_bodies, 1)), np.zeros((self.n_bodies, 1)), c='blue', marker='o')
         self.polygon = polygon
         sdf_grid, grad_x, grad_y, min_p, max_p = generate_sdf(polygon)
 
         # Physics and JAX Setup
         L = np.sqrt((polygon.bounds[2] - polygon.bounds[0])**2 + (polygon.bounds[3] - polygon.bounds[1])**2)
-        alpha = 100
-        beta = 1e3
+        alpha = 1
+        beta = 1e2
 
-        self.vel_threshold = 0.05 * L
+        self.vel_threshold = 100*L
 
         R = alpha
         D = beta / L
@@ -67,7 +66,7 @@ class PointCloudSolver:
 
         dist_sq = dist ** 2    
         mag = (dist_sq + 1e-7) ** -3
-        force = -mag * R * normal * 0.05
+        force = -mag * R * normal
         return force
 
 
@@ -84,7 +83,7 @@ class PointCloudSolver:
         rng = np.random.default_rng()
 
         mic_line = shapely.maximum_inscribed_circle(self.polygon)
-        radius = mic_line.length
+        radius = mic_line.length * 0.85
         center_x, center_y = mic_line.coords[0]
         offset = radius / (2**0.5)  # R / sqrt(2)
 
@@ -134,13 +133,13 @@ class PointCloudSolver:
 
 
     def solve(self, state0=None, steps=5, out=None):
-        print("Beginning simulation.")
         state0 = self.generate_random_initial_state() if state0 is None else state0
+        print(f"Beginning simulation. - {int(state0.size / 2)} particles")
         y0 = state0.flatten()
 
         self.solution = np.zeros((steps, state0.shape[0], state0.shape[1]))
         func = jax.jit(lambda t,y: self.calculate_derivatives(y))
-        max_step = self.T * 1e-2
+        max_step = self.T * 1e-4
 
         solver = RK45(func, 0, y0=y0, t_bound=max_step * (steps + 1), max_step=max_step)
 

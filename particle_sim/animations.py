@@ -213,7 +213,7 @@ class AnimationHandler:
         self.ax_map = {}
         self.scatter = self.primary_ax.scatter(solution[0, :self.n_bodies, 0], solution[0, :self.n_bodies, 1], s=2, c=color, marker='o')
 
-        desired_length = 5
+        desired_length = 10
         self.frames = int(desired_length * self.fps) - 1
         self.interval = self.sol.shape[0] // self.frames
         self.interval = max(self.interval, 1)

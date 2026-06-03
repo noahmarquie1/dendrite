@@ -56,23 +56,6 @@ class Rect:
         self.update_geometry()
 
 
-    def find_in_row(self, pt):
-        for i, row in enumerate(self.rows):
-            for j, point in enumerate(row):
-                if np.allclose(point, pt, atol=1e-7):
-                    return i, j
-        return None, None
-
-
-    def find_in_col(self, pt):
-        for i, col in enumerate(self.cols):
-            for j, point in enumerate(col):
-                if np.allclose(point, pt, atol=1e-7):
-                    return i, j
-                
-        return None, None
-
-
     def update_geometry(self):
         self.update_edges()
         self.make_grid()
@@ -104,10 +87,7 @@ class Rect:
         x = self.x_pts[np.newaxis, :, :] # x points form columns
         y = self.y_pts[:, np.newaxis, :] # y points form rows
         self.grid = x + y - base
-
-        self.rows = [self.grid[i, :, :] for i in range(len(self.y_pts))]
-        self.cols = [self.grid[:, i, :] for i in range(len(self.x_pts))]
-        self.points = np.vstack([row for row in self.rows])
+        self.points = np.vstack([self.grid[i, :, :] for i in range(len(self.y_pts))])
 
 
     def make_mesh(self):

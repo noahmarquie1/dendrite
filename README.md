@@ -7,7 +7,7 @@ By Noah Marquie as part of the UBC Mathematics Anthony Wachs Research Group.
 
 ## Overview
 
-This repository is a package to create 2D point clouds to fill in arbitrary polygons using physics-informed particle simulations. Additionally, this package includes 'extrude' functionality to extend point clouds in 3D, making hollow shells.
+This repository is a package to create 2D point clouds to fill in arbitrary polygons using physics-informed particle simulations. Additionally, this package includes 'extrude' functionality to extend point clouds in 3D.
 
 <img src="preview.gif" width="40%" height="40%" style="max-width: 300px" alt="Solver on simple cube.">
 
