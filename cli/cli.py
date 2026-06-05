@@ -3,7 +3,7 @@ from importlib.metadata import version
 from data.poly_management import load_polygon, save_polygon
 from mesh_generation.mesh import Mesh
 from mesh_generation.geometry import remove_in_area_points, extrude, plot_3d_element
-from particle_sim.solver import PointCloudSolver
+from simulation.solver import PointCloudSolver
 from shapely import Polygon
 import numpy as np
 import os

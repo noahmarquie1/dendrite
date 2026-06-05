@@ -18,7 +18,7 @@ class Graphic:
 
 
 class AnimationHandler:
-    def __init__(self, n_bodies=1, width=6, height=4, dpi=100, fps=30, plots=None, polygon=None, vel_threshold=2):
+    def __init__(self, n_bodies=1, width=6, height=4, dpi=100, fps=30, polygon=None, vel_threshold=2):
         self.n_bodies = n_bodies
         self.dpi = dpi
         self.fps = fps
@@ -29,41 +29,28 @@ class AnimationHandler:
         self.sol = np.empty((0, n_bodies, 2))
         self.out = "./animation.mp4"
 
-        self.plots = plots # list - allows "pdf-anim", "pdf-final", "max-vel" (max 3 allowed)
         self.graphics = []
         self.plot_interval = int(self.fps / 4)
-        self.primary_ax = self.configure_plot()
-        self.mesh_pdf_bars = None
-        self.approx_dist = max(self.width, self.height) / np.sqrt(n_bodies) # rough approximate of ideal distance - used for plotting
+        self.primary_ax = None
 
         self.interval = 0
         self.frames = 0
         self.vel_threshold = vel_threshold
 
+        self.second_plot = None
+        self.second_plot_map = {
+            'max-vel-static': self.setup_max_vel_static_graphic,
+            'max-vel-dynamic': self.update_max_vel_dynamic_graphic,
+        }
+
 
     def configure_plot(self):
-        if self.plots:
-            self.fig, self.ax = plt.subplots(2, 2, dpi=self.dpi)
-            primary_ax = self.ax[0,0]
+        if self.second_plot:
+            self.fig, self.ax = plt.subplots(1, 2, dpi=self.dpi)
+            primary_ax = self.ax[0]
             primary_ax.set_aspect('equal')
             self.fig.set_size_inches(self.width * 2, self.height * 2)
-
-            positions = [[0, 1], [1, 0], [1, 1]] 
-            if 'pdf-anim' in self.plots:
-                self.graphics.append(Graphic(anim=True, func=self.update_pdf_anim_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
-                positions = positions[1:]
-            if 'pdf-final' in self.plots:
-                self.graphics.append(Graphic(anim=False, func=self.setup_pdf_final_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
-                positions = positions[1:]
-            if 'max-vel-static' in self.plots:
-                self.graphics.append(Graphic(anim=False, func=self.setup_max_vel_static_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
-                positions = positions[1:]
-            if 'max-vel-dynamic' in self.plots:
-                self.graphics.append(Graphic(anim=True, func=self.update_max_vel_dynamic_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
-                positions = positions[1:]
-            if 'pdf-comparison' in self.plots:
-                self.graphics.append(Graphic(anim=False, func=self.setup_pdf_comparison_graphic, ax=self.ax[positions[0][0], positions[0][1]]))
-                positions = positions[1:]
+            self.graphics.append(Graphic(anim=False, func=self.second_plot_map[self.second_plot], ax=self.ax[1]))
 
         else:
             self.fig, self.ax = plt.subplots(1, 1, dpi=self.dpi)
@@ -78,7 +65,7 @@ class AnimationHandler:
         if self.polygon is not None:
             plot_polygon(self.polygon, ax=primary_ax, color='lightgray', edgecolor='black')
 
-        return primary_ax
+        self.primary_ax = primary_ax
     
 
     def add_static_points(self, points: np.ndarray, color="blue"):
@@ -90,7 +77,7 @@ class AnimationHandler:
         self.primary_ax.set_xlim(min_x, max_x)
         self.primary_ax.set_ylim(min_y, max_y)
         self.primary_ax.scatter(points[:, 0], points[:, 1], c=color)
-                
+
 
     def update_max_vel_dynamic_graphic(self, setup: bool, ax, idx=None):
         if setup and self.vel_threshold:
@@ -133,14 +120,16 @@ class AnimationHandler:
             f"Step: {i*self.interval}/{len(self.sol)}, {i*self.interval/len(self.sol)*100:.1f}%\n"
         ))
 
-        if self.plots and i % self.plot_interval == 0:
-            for graphic in self.graphics:
-                graphic.func(setup=False, idx=i)
+        if self.second_plot == 'max-vel-dynamic' and i % self.plot_interval == 0:
+            self.update_max_vel_dynamic_graphic(setup=False, idx=i)
                 
         return self.scatter,
 
 
-    def animate(self, solution, color="blue"):
+    def animate(self, solution, color="blue", second_plot=None):
+        self.second_plot = second_plot
+        self.configure_plot()
+
         self.sol = solution
         self.ax_map = {}
         self.scatter = self.primary_ax.scatter(solution[0, :self.n_bodies, 0], solution[0, :self.n_bodies, 1], s=2, c=color, marker='o')

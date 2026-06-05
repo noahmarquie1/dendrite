@@ -10,7 +10,7 @@ import jax.numpy as jnp
 
 # Point Cloud Solver Class
 class PointCloudSolver:
-    def __init__(self, dpi=100, width=6, height=6, n_bodies=1, plots=None, polygon=None, fps=15):
+    def __init__(self, dpi=100, width=6, height=6, n_bodies=1, polygon=None, fps=15):
 
         self.solution = np.empty((0, 2))
         self.dpi = dpi
@@ -45,7 +45,7 @@ class PointCloudSolver:
         # Animator Setup
         self.anim = AnimationHandler(
             n_bodies=self.n_bodies, width=self.width, height=self.height,
-            polygon=polygon, dpi=self.dpi, plots=plots, fps=fps, vel_threshold=self.vel_threshold
+            polygon=polygon, dpi=self.dpi, fps=fps, vel_threshold=self.vel_threshold
         )
 
 
@@ -171,7 +171,7 @@ class PointCloudSolver:
         return self.solution
 
 
-    def animate(self, out=None, color="blue"):
+    def animate(self, out=None, color="blue", second_plot=None):
         if self.solution.shape[0] == 0:
             print("No solution to animate.")
             return
@@ -180,7 +180,7 @@ class PointCloudSolver:
             self.anim.out = out
 
         print("Beginning animation.")
-        self.anim.animate(self.solution, color)
+        self.anim.animate(self.solution, color, second_plot=second_plot)
 
 
 if __name__ == '__main__':

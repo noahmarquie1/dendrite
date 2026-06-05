@@ -20,13 +20,13 @@ class StaticRegion:
         self.mesh = shapely.convex_hull(Polygon(self.points))
 
     def visualize(self, ax):
-        ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.5)
+        ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.5, s=5)
 
 
 # Dynamic Region Classes
 class DynamicRegionSolver(PointCloudSolver):
-    def __init__(self, dpi=100, width=6, height=6, n_bodies=1, plots=None, polygon=None, fps=15, region=None):
-        super().__init__(dpi=dpi, width=width, height=height, n_bodies=n_bodies, plots=plots, polygon=polygon, fps=fps)
+    def __init__(self, dpi=100, width=6, height=6, n_bodies=1, polygon=None, fps=15, region=None):
+        super().__init__(dpi=dpi, width=width, height=height, n_bodies=n_bodies, polygon=polygon, fps=fps)
         self.region = region
 
 
@@ -64,17 +64,14 @@ class DynamicRegion:
         plt.scatter(self.boundary_points[:, 0], self.boundary_points[:, 1], c='red')
         plt.scatter(self.filled_points[:, 0], self.filled_points[:, 1], c='blue')
 
-    def fill_region(self):
-        plot_polygon(self.mesh)
-        plt.scatter(self.boundary_points[:, 0], self.boundary_points[:, 1])
-        plt.show()
+    def fill(self):
         sol = self.solver.solve(steps=int(1e3))
-        self.solver.animate("anim.mp4")
+        self.solver.animate("anim.mp4", second_plot="max-vel-static")
         self.filled_points = sol[-1][:self.n_bodies]
 
 
 # Mesh Class
-class SquareMesh:
+class Mesh:
     def __init__(self, rect):
         self.rects: list[Rect] = [rect] 
         self.mesh = rect.mesh
@@ -174,8 +171,12 @@ class SquareMesh:
                 self.update_static_regions(rect, rect_n)
                 if verbose:
                     print("Creating dynamic region")
-                dynamic_region = self.create_dynamic_region(rect, rect_n, connecting_points)
-                dynamic_region.fill_region()
+                self.create_dynamic_region(rect, rect_n, connecting_points)
                 
         self.rects.append(rect_n)
+
+
+    def dynamic_fill(self):
+        for region in self.dynamic_regions:
+            region.fill()
 
