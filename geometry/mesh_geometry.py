@@ -4,7 +4,7 @@ from shapely import Polygon, Point
 from shapely.plotting import plot_polygon
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
-from particle_sim.solver import PointCloudSolver
+from simulation.solver import PointCloudSolver
 import jax.numpy as jnp
 from geometry.rect_geometry import Rect
 
@@ -14,8 +14,9 @@ from geometry.rect_geometry import Rect
 #  - points can be refreshed when a new square is added (often updating grid layouts)
 #  - keeps track of intersecting dynamic regions as to avoid duplicate points
 class StaticRegion:
-    def __init__(self, points=None):
-        self.points = points
+    def __init__(self, rect: Rect):
+        self.points = rect.points
+        self.boundary_points = rect.edge_points
         self.mesh = shapely.convex_hull(Polygon(self.points))
 
     def visualize(self, ax):
@@ -77,7 +78,8 @@ class SquareMesh:
     def __init__(self, rect):
         self.rects: list[Rect] = [rect] 
         self.mesh = rect.mesh
-        self.static_regions: dict[Rect, StaticRegion] = { rect: StaticRegion(rect.points) }
+        self.boundary_points = rect.edge_points
+        self.static_regions: dict[Rect, StaticRegion] = { rect: StaticRegion(rect) }
         self.intersections: dict[Rect, list[DynamicRegion]] = { rect: [] }
         self.dynamic_regions: list[DynamicRegion] = []
 
@@ -86,8 +88,17 @@ class SquareMesh:
         intersection = r1.mesh.intersection(r2.mesh)
         r1_points = self.remove_intersecting_points(r1.points, intersection)
         r2_points = self.remove_intersecting_points(r2.points, intersection)
+
+        r1_boundary_points = self.remove_intersecting_points(r1.edge_points, intersection)
+        r2_boundary_points = self.remove_intersecting_points(r2.edge_points, intersection)
+
         self.static_regions[r1].points = r1_points
         self.static_regions[r2].points = r2_points
+
+        self.static_regions[r1].boundary_points = r1_boundary_points
+        self.static_regions[r2].boundary_points = r2_boundary_points
+
+        self.boundary_points = np.vstack([region.boundary_points for region in self.static_regions.values()])
 
         
     def add_intersection(self, rects, dynamic_region):
@@ -140,11 +151,12 @@ class SquareMesh:
         dynamic_region = DynamicRegion(boundary_points=boundary_points, connecting_points=connecting_points, n_bodies=n_bodies)
         self.dynamic_regions.append(dynamic_region)
         self.add_intersection([s1, s2], dynamic_region)
+        self.boundary_points = np.append(self.boundary_points, connecting_points, axis=0)
         return dynamic_region
         
 
     def add_rect(self, rect_n: Rect, verbose=0): # Main function used outside class
-        self.static_regions[rect_n] = StaticRegion(rect_n.points)
+        self.static_regions[rect_n] = StaticRegion(rect_n)
 
         for rect in self.rects:
             edges1 = rect.mesh.exterior

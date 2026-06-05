@@ -1,5 +1,5 @@
 import numpy as np
-from particle_sim.animations import AnimationHandler
+from simulation.animations import AnimationHandler
 from scipy.integrate import RK45
 from geometry.base_geometry import sample_sdf, generate_sdf
 import matplotlib.pyplot as plt

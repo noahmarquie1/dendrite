@@ -46,13 +46,13 @@ class Rect:
         n_step_x = round(width / step_size)
         n_step_y = round(height / step_size)
 
-        x_start = np.array([-width / 2, -height / 2])
-        x_end = np.array([width / 2, -height / 2])
-        y_start = np.array([width / 2, -height / 2])
-        y_end = np.array([width / 2, height / 2])
+        bl = np.array([-width / 2, -height / 2])
+        br = np.array([width / 2, -height / 2])
+        tr = np.array([width / 2, height / 2])
 
-        self.x_pts = np.linspace(x_start, x_end, n_step_x)
-        self.y_pts = np.linspace(y_start, y_end, n_step_y)
+        self.x_pts = np.linspace(bl, br, n_step_x)
+        self.y_pts = np.linspace(br, tr, n_step_y)
+        self.edge_points = np.zeros((0,2))
         self.update_geometry()
 
 
@@ -68,6 +68,7 @@ class Rect:
         self.t = Edge(self.corners[3], self.corners[2])
         self.l = Edge(self.corners[0], self.corners[3])
         self.edges = [self.b, self.r, self.t, self.l]
+
         self.opposite_edges = { self.b: self.t, self.t: self.b, self.l: self.r, self.r: self.l }
         self.axes = { self.b: 'x_pts', self.t: 'x_pts', self.l: 'y_pts', self.r: 'y_pts' }
 
@@ -87,6 +88,12 @@ class Rect:
         x = self.x_pts[np.newaxis, :, :] # x points form columns
         y = self.y_pts[:, np.newaxis, :] # y points form rows
         self.grid = x + y - base
+        self.edge_points = np.vstack([
+            self.grid[0, :, :],
+            self.grid[-1, :, :],
+            self.grid[:, 0, :],
+            self.grid[:, -1, :],
+        ])
         self.points = np.vstack([self.grid[i, :, :] for i in range(len(self.y_pts))])
 
 

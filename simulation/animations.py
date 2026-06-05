@@ -3,7 +3,6 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 from shapely.plotting import plot_polygon
 from shapely.geometry import Point
-from mesh_generation.stats import plot_mesh_pdf, update_mesh_pdf
 import seaborn as sns
 
 
@@ -91,24 +90,6 @@ class AnimationHandler:
         self.primary_ax.set_xlim(min_x, max_x)
         self.primary_ax.set_ylim(min_y, max_y)
         self.primary_ax.scatter(points[:, 0], points[:, 1], c=color)
-
-
-    def update_pdf_anim_graphic(self, setup: bool, ax, idx=None):
-        if setup:
-            ax.set_title("Mesh PDF Evolution")
-            ax.set_xlabel("Distance")
-            ax.set_ylabel("Probability")
-            mesh_pdf_bars = plot_mesh_pdf(
-                mesh_points=self.sol[0, :self.n_bodies, :], 
-                approx_step=self.approx_dist, 
-                ax=ax, 
-                color='lightblue', 
-                chart_details=False
-            )
-            ax.set_ylim(0, 1)
-            self.mesh_pdf_bars = mesh_pdf_bars
-        else:
-            update_mesh_pdf(bars=self.mesh_pdf_bars, mesh_points=self.sol[idx*self.interval, :self.n_bodies, :], approx_step=self.approx_dist)
                 
 
     def update_max_vel_dynamic_graphic(self, setup: bool, ax, idx=None):
@@ -125,55 +106,6 @@ class AnimationHandler:
             point_color = 'green' if max_vel < self.vel_threshold else 'red'
             scatter_point.set_facecolors([point_color])
             scatter_point.set_offsets([[idx*self.interval, max_vel]])
-
-
-    def get_dist_at_idx(self, idx):
-        return plot_mesh_pdf(self.sol[idx, :self.n_bodies, :], approx_step=self.approx_dist) # will return x and y as arrays
-
-
-    def setup_pdf_final_graphic(self, ax):
-        ax.set_title("Final PDF")
-        ax.set_xlabel("Distance")
-        ax.set_ylabel("Probability")
-        ax.set_ylim(0, 1)
-        plot_mesh_pdf(self.sol[-1, :self.n_bodies, :], approx_step=self.approx_dist, ax=ax, color='lightblue', chart_details=False)
-
-
-    def setup_pdf_comparison_graphic(self, ax):
-        ax.set_title("Initial v. Final PDF")
-        ax.set_xlabel("Distance")
-        ax.set_ylabel("Probability")
-        ax.set_ylim(0, 1)
-
-        # plot initial distribution
-        x, y = self.get_dist_at_idx(0)
-        sns.histplot(
-            x=x,
-            weights=y,
-            ax=ax,
-            bins=x.shape[0],
-            element='poly',
-            label="Initial",
-            color='red',
-            alpha=0.3,
-        )
-
-        # plot final distribution
-        x, y = self.get_dist_at_idx(-1)
-        sns.histplot(
-            x=x,
-            weights=y,
-            ax=ax,
-            bins=x.shape[0],
-            element='poly',
-            label="Final",
-            color='blue',
-            alpha=0.3,
-        )
-
-        # plot legend
-        ax.legend(loc="upper right")
-
 
 
     def find_max_vel_at_idx(self, i):
