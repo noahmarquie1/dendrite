@@ -172,7 +172,7 @@ class Mesh:
 
 
     def dynamic_fill(self, verbose=0):
-        for i, region in enumerate(self.dynamic_regions[:1]):
+        for i, region in enumerate(self.dynamic_regions):
             print(f"Filling region {i}/{len(self.dynamic_regions)}")
             region.fill(verbose=verbose)
 
