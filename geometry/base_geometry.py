@@ -60,9 +60,11 @@ def plot_3d_element(edge_points, inner_points):
 # SDF Grid Generation
 def generate_sdf(geometry: Geometry, res=256):
     x_min, y_min, x_max, y_max = geometry.bounds
-    min_p = min(x_min, y_min) - 2
-    max_p = max(x_max, y_max) + 2
+    span = max(x_max - x_min, y_max - y_min)
+    padding = span * 0.2  
 
+    min_p = min(x_min, y_min) - padding
+    max_p = max(x_max, y_max) + padding
 
     x = np.linspace(min_p, max_p, res)
     y = np.linspace(min_p, max_p, res)

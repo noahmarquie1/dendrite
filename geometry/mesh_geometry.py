@@ -61,12 +61,14 @@ class DynamicRegion:
 
     def visualize(self):
         plt.close()
+        plot_polygon(self.mesh)
         plt.scatter(self.boundary_points[:, 0], self.boundary_points[:, 1], c='red')
         plt.scatter(self.filled_points[:, 0], self.filled_points[:, 1], c='blue')
 
-    def fill(self):
+    def fill(self, verbose=0):
         sol = self.solver.solve(steps=int(1e3))
-        self.solver.animate("anim.mp4", second_plot="max-vel-static")
+        if verbose:
+            self.solver.animate("anim.mp4", second_plot="max-vel-dynamic")
         self.filled_points = sol[-1][:self.n_bodies]
 
 
@@ -83,11 +85,11 @@ class Mesh:
     
     def update_static_regions(self, r1: Rect, r2: Rect):
         intersection = r1.mesh.intersection(r2.mesh)
-        r1_points = self.remove_intersecting_points(r1.points, intersection)
-        r2_points = self.remove_intersecting_points(r2.points, intersection)
+        r1_boundary_points = self.remove_intersecting_points(self.static_regions[r1].boundary_points, intersection)
+        r2_boundary_points = self.remove_intersecting_points(self.static_regions[r2].boundary_points, intersection)
 
-        r1_boundary_points = self.remove_intersecting_points(r1.edge_points, intersection)
-        r2_boundary_points = self.remove_intersecting_points(r2.edge_points, intersection)
+        r1_points = self.remove_intersecting_points(self.static_regions[r1].points, intersection)
+        r2_points = self.remove_intersecting_points(self.static_regions[r2].points, intersection)
 
         self.static_regions[r1].points = r1_points
         self.static_regions[r2].points = r2_points
@@ -120,31 +122,24 @@ class Mesh:
 
 
     def create_dynamic_region(self, s1: Rect, s2: Rect, connecting_points) -> DynamicRegion:
-        tree_s1_static = KDTree(self.static_regions[s1].points)
-        dists_s1, _ = tree_s1_static.query(s1.points)
-        s1_overlapping = s1.points[dists_s1 > 1e-4]
-
-        tree_s2_static = KDTree(self.static_regions[s2].points)
-        dists_s2, _ = tree_s2_static.query(s2.points)
-        s2_overlapping = s2.points[dists_s2 > 1e-4]
-
+        intersection = s1.mesh.intersection(s2.mesh)
+        s1_overlapping = [point for point in s1.points if intersection.distance(Point(point)) < 1e-7]
+        s2_overlapping = [point for point in s2.points if intersection.distance(Point(point)) < 1e-7]
         overlapping = np.vstack([s1_overlapping, s2_overlapping])
+
         non_overlapping = np.vstack([
             self.static_regions[s1].points,
             self.static_regions[s2].points
         ])
 
-        if overlapping.size > 0 and non_overlapping.size > 0:
-            step_size = max(s1.step_size, s2.step_size)
-            tree_overlap = KDTree(overlapping)
-            dists_to_overlap, _ = tree_overlap.query(non_overlapping)
+        step_size = max(s1.step_size, s2.step_size)
+        tree_overlap = KDTree(overlapping)
+        dists_to_overlap, _ = tree_overlap.query(non_overlapping)
+        boundary_mask = (dists_to_overlap <= step_size * 1.5)
+        boundary_points = non_overlapping[boundary_mask]
+        boundary_points = np.vstack([boundary_points, connecting_points])
 
-            boundary_mask = (dists_to_overlap > 1e-4) & (dists_to_overlap <= step_size * 1.5)
-            boundary_points = non_overlapping[boundary_mask]
-            boundary_points = np.vstack([boundary_points, connecting_points])
-
-
-        n_bodies = int((s1_overlapping.shape[0] + s2_overlapping.shape[0]) / 2)
+        n_bodies = int(overlapping.shape[0] / 2)
         dynamic_region = DynamicRegion(boundary_points=boundary_points, connecting_points=connecting_points, n_bodies=n_bodies)
         self.dynamic_regions.append(dynamic_region)
         self.add_intersection([s1, s2], dynamic_region)
@@ -176,7 +171,8 @@ class Mesh:
         self.rects.append(rect_n)
 
 
-    def dynamic_fill(self):
-        for region in self.dynamic_regions:
-            region.fill()
+    def dynamic_fill(self, verbose=0):
+        for i, region in enumerate(self.dynamic_regions[:1]):
+            print(f"Filling region {i}/{len(self.dynamic_regions)}")
+            region.fill(verbose=verbose)
 

@@ -134,7 +134,7 @@ class PointCloudSolver:
 
     def solve(self, state0=None, steps=5, out=None):
         state0 = self.generate_random_initial_state() if state0 is None else state0
-        print(f"Beginning simulation. - {int(state0.size / 2)} particles")
+        print(f"Beginning simulation. - {int(state0.shape[0] / 2)} particles")
         y0 = state0.flatten()
 
         self.solution = np.zeros((steps, state0.shape[0], state0.shape[1]))

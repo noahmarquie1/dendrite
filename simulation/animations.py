@@ -50,7 +50,8 @@ class AnimationHandler:
             primary_ax = self.ax[0]
             primary_ax.set_aspect('equal')
             self.fig.set_size_inches(self.width * 2, self.height * 2)
-            self.graphics.append(Graphic(anim=False, func=self.second_plot_map[self.second_plot], ax=self.ax[1]))
+            anim = "dynamic" in self.second_plot
+            self.graphics.append(Graphic(anim=anim, func=self.second_plot_map[self.second_plot], ax=self.ax[1]))
 
         else:
             self.fig, self.ax = plt.subplots(1, 1, dpi=self.dpi)
@@ -58,8 +59,8 @@ class AnimationHandler:
             self.fig.set_size_inches(self.width, self.height)
             self.ax.set_aspect('equal')
         
-        primary_ax.set_xlim(self.polygon.bounds[0] - 0.1, self.polygon.bounds[2] + 0.1)
-        primary_ax.set_ylim(self.polygon.bounds[1] - 0.1, self.polygon.bounds[3] + 0.1)
+        primary_ax.set_xlim(self.polygon.bounds[0], self.polygon.bounds[2])
+        primary_ax.set_ylim(self.polygon.bounds[1], self.polygon.bounds[3])
         primary_ax.set_title(f'{self.n_bodies}-Body Simulation')
 
         if self.polygon is not None:
@@ -107,7 +108,7 @@ class AnimationHandler:
         ax.set_xlabel("Time")
         ax.set_ylabel("Velocity")
 
-        t = range(self.frames)
+        t = range(int(2*self.frames / 10), self.frames)
         max_vels = np.array([self.find_max_vel_at_idx(i*self.interval) for i in t])
         t = np.array(t) * self.interval
         ax.plot(t, max_vels)
@@ -120,8 +121,8 @@ class AnimationHandler:
             f"Step: {i*self.interval}/{len(self.sol)}, {i*self.interval/len(self.sol)*100:.1f}%\n"
         ))
 
-        if self.second_plot == 'max-vel-dynamic' and i % self.plot_interval == 0:
-            self.update_max_vel_dynamic_graphic(setup=False, idx=i)
+        if self.second_plot == 'max-vel-dynamic' and i % self.plot_interval == 0 and i > 2*self.frames / 10:
+            self.update_max_vel_dynamic_graphic(setup=False, idx=i, ax=self.ax[1])
                 
         return self.scatter,
 
