@@ -23,13 +23,13 @@ class PointCloudSolver:
         # Physics and JAX Setup
         L = np.sqrt((polygon.bounds[2] - polygon.bounds[0])**2 + (polygon.bounds[3] - polygon.bounds[1])**2)
         alpha = 1
-        beta = 1e2
+        beta = 10
 
         self.vel_threshold = 100*L
 
         R = alpha
         D = beta / L
-        self.T = np.sqrt((L ** 7) / alpha)
+        self.T = np.sqrt((L ** 7) / alpha) / 4
 
         sdf = jnp.array(sdf_grid)
         grad_x = jnp.array(grad_x)
@@ -51,7 +51,7 @@ class PointCloudSolver:
 
     def inter_point_repulsion(self, delta, R):
         r2 = jnp.sum(delta ** 2)
-        rep = (r2 + 1e-7) ** -3 # Without the sqrt(), this acts as a force with 6 exponent (highly dissipative)
+        rep = (r2 + 1e-9) ** -3 # Without the sqrt(), this acts as a force with 6 exponent (highly dissipative)
 
         norm = jnp.linalg.norm(delta)
         dir = jnp.where(norm > 1e-8, delta / norm, jnp.zeros_like(delta))
@@ -65,7 +65,7 @@ class PointCloudSolver:
         normal = jnp.array([nx, ny])
 
         dist_sq = dist ** 2    
-        mag = (dist_sq + 1e-7) ** -3
+        mag = (dist_sq + 1e-9) ** -3
         force = -mag * R * normal
         return force
 
