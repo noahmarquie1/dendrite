@@ -1,10 +1,10 @@
 import polars as pl
-from geometry.mesh_geometry import Mesh, Rect
+from geometry.mesh_geometry import Mesh, Rect, StaticRegion
 from shapely.plotting import plot_polygon
 from shapely import Polygon
 import matplotlib.pyplot as plt
 
-STEP_SIZE = 0.00004
+STEP_SIZE = 0.00006
 
 data = pl.read_csv("dendrite.csv")
 
@@ -22,15 +22,19 @@ for i in range(1, data.shape[0]):
     )
     mesh.add_rect(rect)
 
-for region in mesh.dynamic_regions:
-    region.fill()
+for i, region in enumerate(mesh.dynamic_regions):
+    #verbose = (i == len(mesh.dynamic_regions) - 1)
+    verbose = 0
+    region.fill(verbose=verbose)
 
+plt.style.use('seaborn-v0_8')
 fig, ax = plt.subplots(1,1)
 ax.set_aspect(1)
 for region in mesh.static_regions.values():
     region.visualize(ax)
 
 for region in mesh.dynamic_regions:
-    plt.scatter(region.filled_points[:, 0], region.filled_points[:, 1], c="green", s=4)
+    #plt.scatter(region.boundary_points[:, 0], region.boundary_points[:, 1], c='red', s=4, alpha=0.6)
+    plt.scatter(region.filled_points[:, 0], region.filled_points[:, 1], s=4)
 
 plt.show()

@@ -32,6 +32,7 @@ class AnimationHandler:
         self.graphics = []
         self.plot_interval = int(self.fps / 4)
         self.primary_ax = None
+        self.min_x, self.max_x, self.min_y, self.max_y = 0, 0, 0, 0
 
         self.interval = 0
         self.frames = 0
@@ -44,7 +45,7 @@ class AnimationHandler:
         }
 
 
-    def configure_plot(self):
+    def configure_plot(self, show_poly=False):
         if self.second_plot:
             self.fig, self.ax = plt.subplots(1, 2, dpi=self.dpi)
             primary_ax = self.ax[0]
@@ -63,21 +64,26 @@ class AnimationHandler:
         primary_ax.set_ylim(self.polygon.bounds[1], self.polygon.bounds[3])
         primary_ax.set_title(f'{self.n_bodies}-Body Simulation')
 
-        if self.polygon is not None:
+        if self.polygon is not None and show_poly:
             plot_polygon(self.polygon, ax=primary_ax, color='lightgray', edgecolor='black')
 
         self.primary_ax = primary_ax
     
 
     def add_static_points(self, points: np.ndarray, color="blue"):
-        min_x = min(min(points[:, 0]) - 0.1, self.polygon.bounds[0] - 0.1)
-        max_x = max(max(points[:, 0]) + 0.1, self.polygon.bounds[2] - 0.1)
-        min_y = min(min(points[:, 1]) - 0.1, self.polygon.bounds[1] - 0.1)
-        max_y = max(max(points[:, 1]) + 0.1, self.polygon.bounds[3] - 0.1)
+        n_min_x = min(min(points[:, 0]) - 0.1, self.polygon.bounds[0] - 0.1)
+        n_max_x = max(max(points[:, 0]) + 0.1, self.polygon.bounds[2] - 0.1)
+        n_min_y = min(min(points[:, 1]) - 0.1, self.polygon.bounds[1] - 0.1)
+        n_max_y = max(max(points[:, 1]) + 0.1, self.polygon.bounds[3] - 0.1)
 
-        self.primary_ax.set_xlim(min_x, max_x)
-        self.primary_ax.set_ylim(min_y, max_y)
-        self.primary_ax.scatter(points[:, 0], points[:, 1], c=color)
+        self.min_x = min(self.min_x, n_min_x)
+        self.max_x = max(self.max_x, n_max_x)
+        self.min_y = min(self.min_y, n_min_y)
+        self.max_y = max(self.max_y, n_max_y)
+
+        self.primary_ax.set_xlim(self.min_x, self.max_x)
+        self.primary_ax.set_ylim(self.min_y, self.max_y)
+        self.primary_ax.scatter(points[:, 0], points[:, 1], s=5, alpha=0.7)
 
 
     def update_max_vel_dynamic_graphic(self, setup: bool, ax, idx=None):
@@ -127,13 +133,13 @@ class AnimationHandler:
         return self.scatter,
 
 
-    def animate(self, solution, color="blue", second_plot=None):
+    def animate(self, solution, second_plot=None):
+
         self.second_plot = second_plot
-        self.configure_plot()
 
         self.sol = solution
         self.ax_map = {}
-        self.scatter = self.primary_ax.scatter(solution[0, :self.n_bodies, 0], solution[0, :self.n_bodies, 1], s=2, c=color, marker='o')
+        self.scatter = self.primary_ax.scatter(solution[0, :self.n_bodies, 0], solution[0, :self.n_bodies, 1], s=5, alpha=0.7, marker='o')
 
         desired_length = 10
         self.frames = int(desired_length * self.fps) - 1

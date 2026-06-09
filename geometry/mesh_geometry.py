@@ -19,6 +19,7 @@ class StaticRegion:
         self.boundary_points = rect.edge_points
         self.mesh = shapely.convex_hull(Polygon(self.points))
 
+
     def visualize(self, ax):
         ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.5, s=5)
 
@@ -56,7 +57,7 @@ class DynamicRegion:
         self.connecting_points = connecting_points
         self.mesh = shapely.concave_hull(Polygon(boundary_points), ratio=0.7)
         self.n_bodies = n_bodies
-        self.solver = DynamicRegionSolver(polygon=self.mesh, n_bodies=self.n_bodies, region=self)
+        self.solver: DynamicRegionSolver = DynamicRegionSolver(polygon=self.mesh, n_bodies=self.n_bodies, region=self)
         self.filled_points = None
 
     def visualize(self):
@@ -66,10 +67,13 @@ class DynamicRegion:
         plt.scatter(self.filled_points[:, 0], self.filled_points[:, 1], c='blue')
 
     def fill(self, verbose=0):
-        sol = self.solver.solve(steps=int(1e3))
-        if verbose:
-            self.solver.animate("anim.mp4", second_plot="max-vel-dynamic")
-        self.filled_points = sol[-1][:self.n_bodies]
+        if self.boundary_points.shape[0] > 6:
+            sol = self.solver.solve(steps=int(1e3))
+            if verbose:
+                self.solver.animate("anim.mp4", second_plot="max-vel-dynamic")
+            self.filled_points = sol[-1][:self.n_bodies]
+        else:
+            self.filled_points = np.zeros((0,2))
 
 
 # Mesh Class
@@ -78,7 +82,7 @@ class Mesh:
         self.rects: list[Rect] = [rect] 
         self.mesh = rect.mesh
         self.boundary_points = rect.edge_points
-        self.static_regions: dict[Rect, StaticRegion] = { rect: StaticRegion(rect) }
+        self.static_regions: dict[Rect, StaticRegion] = { rect: StaticRegion(rect=rect) }
         self.intersections: dict[Rect, list[DynamicRegion]] = { rect: [] }
         self.dynamic_regions: list[DynamicRegion] = []
 
@@ -135,7 +139,7 @@ class Mesh:
         step_size = max(s1.step_size, s2.step_size)
         tree_overlap = KDTree(overlapping)
         dists_to_overlap, _ = tree_overlap.query(non_overlapping)
-        boundary_mask = (dists_to_overlap <= step_size * 1.5)
+        boundary_mask = (dists_to_overlap <= step_size * 1.2)
         boundary_points = non_overlapping[boundary_mask]
         boundary_points = np.vstack([boundary_points, connecting_points])
 
@@ -175,4 +179,17 @@ class Mesh:
         for i, region in enumerate(self.dynamic_regions):
             print(f"Filling region {i}/{len(self.dynamic_regions)}")
             region.fill(verbose=verbose)
+
+
+    def animate_region(self, dynamic_region: DynamicRegion):
+        plt.close('all')
+        plt.style.use('seaborn-v0_8')
+        anim = dynamic_region.solver.anim
+        anim.out = "anim.gif"
+        anim.configure_plot()
+        
+        for static_region in self.static_regions.values():
+            anim.add_static_points(static_region.points)
+        
+        anim.animate(dynamic_region.solver.solution)
 
