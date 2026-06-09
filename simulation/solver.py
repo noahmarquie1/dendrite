@@ -171,7 +171,7 @@ class PointCloudSolver:
         return self.solution
 
 
-    def animate(self, out=None, color="blue", second_plot=None):
+    def animate(self, out=None, color="blue"):
         if self.solution.shape[0] == 0:
             print("No solution to animate.")
             return
@@ -180,7 +180,8 @@ class PointCloudSolver:
             self.anim.out = out
 
         print("Beginning animation.")
-        self.anim.animate(self.solution, color, second_plot=second_plot)
+        self.anim.configure_plot()
+        self.anim.animate(self.solution)
 
 
 if __name__ == '__main__':

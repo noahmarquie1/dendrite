@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from shapely.plotting import plot_polygon
 from shapely.geometry import Point
 import seaborn as sns
+from shapely import Polygon
 
 
 class Graphic:
@@ -18,7 +19,7 @@ class Graphic:
 
 
 class AnimationHandler:
-    def __init__(self, n_bodies=1, width=6, height=4, dpi=100, fps=30, polygon=None, vel_threshold=2):
+    def __init__(self, n_bodies=1, width=6, height=4, dpi=100, fps=30, polygon: Polygon = None, vel_threshold=2):
         self.n_bodies = n_bodies
         self.dpi = dpi
         self.fps = fps
@@ -71,10 +72,12 @@ class AnimationHandler:
     
 
     def add_static_points(self, points: np.ndarray, color="blue"):
-        n_min_x = min(min(points[:, 0]) - 0.1, self.polygon.bounds[0] - 0.1)
-        n_max_x = max(max(points[:, 0]) + 0.1, self.polygon.bounds[2] - 0.1)
-        n_min_y = min(min(points[:, 1]) - 0.1, self.polygon.bounds[1] - 0.1)
-        n_max_y = max(max(points[:, 1]) + 0.1, self.polygon.bounds[3] - 0.1)
+        border_padding = self.polygon.area / 100
+
+        n_min_x = min(min(points[:, 0]) - border_padding, self.polygon.bounds[0] - border_padding)
+        n_max_x = max(max(points[:, 0]) + border_padding, self.polygon.bounds[2] - border_padding)
+        n_min_y = min(min(points[:, 1]) - border_padding, self.polygon.bounds[1] - border_padding)
+        n_max_y = max(max(points[:, 1]) + border_padding, self.polygon.bounds[3] - border_padding)
 
         self.min_x = min(self.min_x, n_min_x)
         self.max_x = max(self.max_x, n_max_x)
@@ -133,9 +136,7 @@ class AnimationHandler:
         return self.scatter,
 
 
-    def animate(self, solution, second_plot=None):
-
-        self.second_plot = second_plot
+    def animate(self, solution):
 
         self.sol = solution
         self.ax_map = {}

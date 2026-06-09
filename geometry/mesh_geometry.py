@@ -21,7 +21,7 @@ class StaticRegion:
 
 
     def visualize(self, ax):
-        ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.5, s=5)
+        ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.7, s=8)
 
 
 # Dynamic Region Classes
@@ -55,7 +55,9 @@ class DynamicRegion:
     def __init__(self, boundary_points, connecting_points, n_bodies):
         self.boundary_points = boundary_points
         self.connecting_points = connecting_points
-        self.mesh = shapely.concave_hull(Polygon(boundary_points), ratio=0.7)
+        self.boundary_points = np.append(self.boundary_points, self.connecting_points, axis=0)
+
+        self.mesh = shapely.convex_hull(Polygon(boundary_points))
         self.n_bodies = n_bodies
         self.solver: DynamicRegionSolver = DynamicRegionSolver(polygon=self.mesh, n_bodies=self.n_bodies, region=self)
         self.filled_points = None
@@ -70,7 +72,7 @@ class DynamicRegion:
         if self.boundary_points.shape[0] > 6:
             sol = self.solver.solve(steps=int(1e3))
             if verbose:
-                self.solver.animate("anim.mp4", second_plot="max-vel-dynamic")
+                self.solver.animate("anim.mp4")
             self.filled_points = sol[-1][:self.n_bodies]
         else:
             self.filled_points = np.zeros((0,2))
@@ -86,14 +88,21 @@ class Mesh:
         self.intersections: dict[Rect, list[DynamicRegion]] = { rect: [] }
         self.dynamic_regions: list[DynamicRegion] = []
 
+
+    def padded_intersection(self, r1: Rect, r2: Rect, pad=0):
+        intersection = r1.mesh.intersection(r2.mesh)
+        padding_width = pad * min(r1.step_size, r2.step_size)
+        return intersection.buffer(padding_width)
+
     
     def update_static_regions(self, r1: Rect, r2: Rect):
         intersection = r1.mesh.intersection(r2.mesh)
         r1_boundary_points = self.remove_intersecting_points(self.static_regions[r1].boundary_points, intersection)
         r2_boundary_points = self.remove_intersecting_points(self.static_regions[r2].boundary_points, intersection)
 
-        r1_points = self.remove_intersecting_points(self.static_regions[r1].points, intersection)
-        r2_points = self.remove_intersecting_points(self.static_regions[r2].points, intersection)
+        padded_intersection = self.padded_intersection(r1, r2, pad=2)
+        r1_points = self.remove_intersecting_points(self.static_regions[r1].points, padded_intersection)
+        r2_points = self.remove_intersecting_points(self.static_regions[r2].points, padded_intersection)
 
         self.static_regions[r1].points = r1_points
         self.static_regions[r2].points = r2_points
@@ -119,35 +128,45 @@ class Mesh:
     def remove_intersecting_points(self, points, shape: Polygon):
         end_points = []
         for point in points:
-            if shape.distance(Point(point)) > 1e-7:
+            if not shape.distance(Point(point)) < 1e-7:
                 end_points.append(point)
 
         return np.array(end_points)
 
 
-    def create_dynamic_region(self, s1: Rect, s2: Rect, connecting_points) -> DynamicRegion:
-        intersection = s1.mesh.intersection(s2.mesh)
-        s1_overlapping = [point for point in s1.points if intersection.distance(Point(point)) < 1e-7]
-        s2_overlapping = [point for point in s2.points if intersection.distance(Point(point)) < 1e-7]
+    def create_dynamic_region(self, r1: Rect, r2: Rect, connecting_points) -> DynamicRegion:
+        step_size = min(r1.step_size, r2.step_size)
+        intersection = self.padded_intersection(r1, r2, 2)
+        s1_overlapping = [point for point in r1.points if intersection.distance(Point(point)) < 0.5*step_size]
+        s2_overlapping = [point for point in r2.points if intersection.distance(Point(point)) < 0.5*step_size]
         overlapping = np.vstack([s1_overlapping, s2_overlapping])
 
         non_overlapping = np.vstack([
-            self.static_regions[s1].points,
-            self.static_regions[s2].points
+            self.static_regions[r1].points,
+            self.static_regions[r2].points
         ])
 
-        step_size = max(s1.step_size, s2.step_size)
+        # Initial Boundary Creation
         tree_overlap = KDTree(overlapping)
         dists_to_overlap, _ = tree_overlap.query(non_overlapping)
-        boundary_mask = (dists_to_overlap <= step_size * 1.2)
+        boundary_mask = (dists_to_overlap <= step_size * 1.5)
         boundary_points = non_overlapping[boundary_mask]
         boundary_points = np.vstack([boundary_points, connecting_points])
+        self.boundary_points = np.append(self.boundary_points, connecting_points, axis=0)
+
+        # Boundary Shrinking
+        square_bounds = np.vstack([
+            self.static_regions[r1].boundary_points,
+            self.static_regions[r2].boundary_points
+        ])
+        square_bounds = np.array([point for point in square_bounds if intersection.contains(Point(point))])
+        boundary_points = np.append(boundary_points, square_bounds, axis=0)
 
         n_bodies = int(overlapping.shape[0] / 2)
         dynamic_region = DynamicRegion(boundary_points=boundary_points, connecting_points=connecting_points, n_bodies=n_bodies)
         self.dynamic_regions.append(dynamic_region)
-        self.add_intersection([s1, s2], dynamic_region)
-        self.boundary_points = np.append(self.boundary_points, connecting_points, axis=0)
+        self.add_intersection([r1, r2], dynamic_region)
+
         return dynamic_region
         
 
@@ -157,7 +176,9 @@ class Mesh:
         for rect in self.rects:
             edges1 = rect.mesh.exterior
             edges2 = rect_n.mesh.exterior
+
             intersection = edges2.intersection(edges1)
+
             connecting_points = shapely.get_coordinates(intersection)
 
             if connecting_points.shape[0] > 0:
@@ -181,12 +202,16 @@ class Mesh:
             region.fill(verbose=verbose)
 
 
-    def animate_region(self, dynamic_region: DynamicRegion):
+    def animate_region(self, dynamic_region: DynamicRegion, debug=False):
         plt.close('all')
-        plt.style.use('seaborn-v0_8')
+        plt.style.use('seaborn-v0_8-paper')
         anim = dynamic_region.solver.anim
         anim.out = "anim.gif"
         anim.configure_plot()
+
+        if debug:
+            plot_polygon(dynamic_region.mesh)
+            plt.scatter(dynamic_region.boundary_points[:, 0], dynamic_region.boundary_points[:, 1], c="red")
         
         for static_region in self.static_regions.values():
             anim.add_static_points(static_region.points)
