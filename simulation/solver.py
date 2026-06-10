@@ -22,14 +22,14 @@ class PointCloudSolver:
 
         # Physics and JAX Setup
         L = np.sqrt((polygon.bounds[2] - polygon.bounds[0])**2 + (polygon.bounds[3] - polygon.bounds[1])**2)
-        alpha = 1
-        beta = 10
+        alpha = 20
+        beta = 1e2
 
-        self.vel_threshold = 100*L
+        self.vel_threshold = 10*L
 
         R = alpha
         D = beta / L
-        self.T = np.sqrt((L ** 7) / alpha) / 4
+        self.T = np.sqrt((L ** 7) / alpha) / 10
 
         sdf = jnp.array(sdf_grid)
         grad_x = jnp.array(grad_x)
@@ -82,8 +82,8 @@ class PointCloudSolver:
     def generate_random_initial_state(self):
         rng = np.random.default_rng()
 
-        mic_line = shapely.maximum_inscribed_circle(self.polygon)
-        radius = mic_line.length * 0.85
+        mic_line = shapely.maximum_inscribed_circle(shapely.concave_hull(self.polygon))
+        radius = mic_line.length * 0.4
         center_x, center_y = mic_line.coords[0]
         offset = radius / (2**0.5)  # R / sqrt(2)
 
