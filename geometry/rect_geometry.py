@@ -94,6 +94,7 @@ class Rect:
             self.grid[:, 0, :],
             self.grid[:, -1, :],
         ])
+        self.edge_points = np.unique(self.edge_points, axis=0)
         self.points = np.vstack([self.grid[i, :, :] for i in range(len(self.y_pts))])
 
 
@@ -141,7 +142,7 @@ class Rect:
                 for linestring in edge.linestrings:
                     start = np.array(linestring.coords)[0]
                     end = np.array(linestring.coords)[1]
-                    n_step = max(2, round(np.linalg.norm(end - start) / self.step_size))
+                    n_step = max(3, round(np.linalg.norm(end - start) / self.step_size))
                     line_seg = np.linspace(start, end, n_step)[1:] 
                     line_points = np.append(line_points, line_seg, axis=0)
 

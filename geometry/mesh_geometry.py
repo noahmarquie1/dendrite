@@ -14,9 +14,9 @@ from geometry.rect_geometry import Rect
 #  - points can be refreshed when a new square is added (often updating grid layouts)
 #  - keeps track of intersecting dynamic regions as to avoid duplicate points
 class StaticRegion:
-    def __init__(self, rect: Rect):
-        self.points = rect.points
-        self.boundary_points = rect.edge_points
+    def __init__(self, rect: Rect, points=None, boundary_points=None):
+        self.points = points if not points is None else rect.points
+        self.boundary_points = boundary_points if not boundary_points is None else rect.edge_points
         self.mesh = shapely.convex_hull(Polygon(self.points))
 
 
@@ -52,12 +52,12 @@ class DynamicRegionSolver(PointCloudSolver):
 
 
 class DynamicRegion:
-    def __init__(self, boundary_points, connecting_points, n_bodies):
+    def __init__(self, boundary_points, connecting_points, n_bodies, mesh=None):
         self.boundary_points = boundary_points
         self.connecting_points = connecting_points
         self.boundary_points = np.append(self.boundary_points, self.connecting_points, axis=0)
 
-        self.mesh = shapely.convex_hull(Polygon(boundary_points))
+        self.mesh = mesh if not mesh is None else shapely.convex_hull(Polygon(boundary_points))
         self.n_bodies = n_bodies
         self.solver: DynamicRegionSolver = DynamicRegionSolver(polygon=self.mesh, n_bodies=self.n_bodies, region=self)
         self.filled_points = None
@@ -76,7 +76,7 @@ class DynamicRegion:
 
     def fill(self, verbose=0):
         if self.boundary_points.shape[0] > 6:
-            sol = self.solver.solve(steps=int(3e3))
+            sol = self.solver.solve(steps=int(1e3))
             if verbose:
                 self.solver.animate("anim.mp4")
             self.filled_points = sol[-1][:self.n_bodies]
@@ -103,20 +103,21 @@ class Mesh:
     
     def update_static_regions(self, r1: Rect, r2: Rect):
         intersection = r1.mesh.intersection(r2.mesh)
-        r1_boundary_points = self.remove_intersecting_points(self.static_regions[r1].boundary_points, intersection)
-        r2_boundary_points = self.remove_intersecting_points(self.static_regions[r2].boundary_points, intersection)
+        if not intersection.is_empty:
+            r1_boundary_points = self.remove_intersecting_points(self.static_regions[r1].boundary_points, intersection)
+            r2_boundary_points = self.remove_intersecting_points(self.static_regions[r2].boundary_points, intersection)
 
-        padded_intersection = self.padded_intersection(r1, r2, pad=1.5)
-        r1_points = self.remove_intersecting_points(self.static_regions[r1].points, padded_intersection)
-        r2_points = self.remove_intersecting_points(self.static_regions[r2].points, padded_intersection)
+            padded_intersection = self.padded_intersection(r1, r2, pad=1.5)
+            r1_points = self.remove_intersecting_points(self.static_regions[r1].points, padded_intersection)
+            r2_points = self.remove_intersecting_points(self.static_regions[r2].points, padded_intersection)
 
-        self.static_regions[r1].points = r1_points
-        self.static_regions[r2].points = r2_points
+            self.static_regions[r1].points = r1_points
+            self.static_regions[r2].points = r2_points
 
-        self.static_regions[r1].boundary_points = r1_boundary_points
-        self.static_regions[r2].boundary_points = r2_boundary_points
+            self.static_regions[r1].boundary_points = r1_boundary_points
+            self.static_regions[r2].boundary_points = r2_boundary_points
 
-        self.boundary_points = np.vstack([region.boundary_points for region in self.static_regions.values()])
+            self.boundary_points = np.vstack([region.boundary_points for region in self.static_regions.values()])
 
         
     def add_intersection(self, rects, dynamic_region):
