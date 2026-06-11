@@ -21,7 +21,7 @@ class StaticRegion:
 
 
     def visualize(self, ax):
-        ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.3, s=8, c='blue')
+        ax.scatter(self.points[:, 0], self.points[:, 1], alpha=0.3, s=8)
 
 
 # Dynamic Region Classes
@@ -219,6 +219,7 @@ class Mesh:
 
         for static_region in self.static_regions.values():
             anim.add_static_points(static_region.points)
+            anim.add_static_points(dynamic_region.connecting_points)
 
         if debug:
             #plot_polygon(dynamic_region.mesh)

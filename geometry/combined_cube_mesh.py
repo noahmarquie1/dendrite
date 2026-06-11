@@ -44,8 +44,6 @@ class CombinedCubeMesh(Mesh):
         self.intersections = self.get_intersections()
         self.make_dynamic()
 
-        self.visualize()
-
 
     def add_rect(self, rect_n: Rect, verbose=0):
         self.mesh = shapely.union(self.mesh, rect_n.mesh)
@@ -68,7 +66,11 @@ class CombinedCubeMesh(Mesh):
                     rect_n.add_edge_point(Point(point))
 
                 # Edit static region for new rect
-                bounds_mask = shapely.dwithin(rect.mesh, shapely.points(boundary_points), distance=1e-5)
+                min_point_dist = 3e-5
+                bounds_mask = (
+                    shapely.dwithin(rect.mesh, shapely.points(boundary_points), distance=1e-5)
+                    | shapely.dwithin(shapely.MultiPoint(connecting_points), shapely.points(boundary_points), distance=min_point_dist)
+                )
                 inner_mask = shapely.dwithin(rect.mesh, shapely.points(inner_points), distance=1e-5)
                 boundary_points = boundary_points[~bounds_mask]
                 inner_points = inner_points[~inner_mask]
@@ -77,7 +79,7 @@ class CombinedCubeMesh(Mesh):
                 region = self.static_regions[rect]
                 bounds_mask = (
                     shapely.dwithin(rect_n.mesh, shapely.points(region.boundary_points), distance=1e-5)
-                    | shapely.dwithin(shapely.MultiPoint(connecting_points), shapely.points(region.boundary_points), distance=2e-5)
+                    | shapely.dwithin(shapely.MultiPoint(connecting_points), shapely.points(region.boundary_points), distance=min_point_dist)
                 )
                 inner_mask = shapely.dwithin(rect_n.mesh, shapely.points(region.points), distance=1e-5)
                 region.boundary_points = region.boundary_points[~bounds_mask]
@@ -97,6 +99,7 @@ class CombinedCubeMesh(Mesh):
                     intersections.append(intersection)
 
         unions = []
+        isolated = []
         while len(intersections) > 0:
             intersect_indices = []
             current_union = None
@@ -116,10 +119,14 @@ class CombinedCubeMesh(Mesh):
                 for idx in intersect_indices:
                     intersections.pop(idx)
 
+            if not current_union is None:
+                unions.append(current_union)
+            else:
+                isolated.append(intersections[0])
+
             intersections.pop(0)
-            unions.append(current_union)
         
-        return unions
+        return unions + isolated
     
 
     def make_dynamic(self):
@@ -146,20 +153,15 @@ class CombinedCubeMesh(Mesh):
             dynamic_region.filled_points = dynamic_region.filled_points[mask]
 
     
-    def visualize(self):
+    def visualize(self, ax, verbose=0):
         
-        plt.scatter(self.global_boundary_points[:, 0], self.global_boundary_points[:, 1], alpha=0.3, c='blue')
-        plt.scatter(self.global_inner_points[:, 0], self.global_inner_points[:, 1], alpha=0.3, c='blue')
+        ax.scatter(self.global_boundary_points[:, 0], self.global_boundary_points[:, 1], alpha=0.3)
+        ax.scatter(self.global_inner_points[:, 0], self.global_inner_points[:, 1], alpha=0.3)
 
         for region in self.dynamic_regions:
-            #plt.scatter(region.boundary_points[:, 0], region.boundary_points[:, 1], alpha=0.3, c='red')
-            plt.scatter(region.filled_points[:, 0], region.filled_points[:, 1], c='purple', alpha=0.3)
+            ax.scatter(region.filled_points[:, 0], region.filled_points[:, 1], alpha=0.3)
+            if verbose:
+                plot_polygon(region.mesh)
+                ax.scatter(region.boundary_points[:, 0], region.boundary_points[:, 1], alpha=1, c='red')
 
-        plt.show()
-
-
-        colors = ['blue', 'red', 'green', 'purple', 'orange', 'magenta', 'blue', 'blue', 'blue']
-        for i, intersection in enumerate(self.intersections):
-            print(f"Plotting intersection: {i}")
-            #plot_polygon(intersection, color=colors[i])
 

@@ -2,7 +2,10 @@ import polars as pl
 from geometry.mesh_geometry import Rect
 from geometry.combined_cube_mesh import CombinedCubeMesh
 import matplotlib.pyplot as plt
+import os
+from geometry.stats import Stats
 from shapely.plotting import plot_polygon
+import numpy as np
 
 STEP_SIZE = 0.00005
 
@@ -35,4 +38,32 @@ for i, index in enumerate(indices):
     rect_list.append(rect)
 
 
+plt.style.use("seaborn-v0_8")
 mesh = CombinedCubeMesh(rect_list)
+out_dir = "out/"
+os.makedirs(out_dir, exist_ok=True)
+
+fig, ax = plt.subplots(1,1)
+fig.set_figwidth(8)
+fig.set_figheight(16)
+ax.set_aspect(1)
+
+img_out = "out/plot.png"
+mesh.visualize(ax=ax)
+plt.savefig(img_out)
+plt.close('all')
+print(f"Plot saved to {img_out}.")
+
+# Save stats
+fig, ax = plt.subplots(1,1)
+pdf_out = "out/pdf.png"
+
+all_points = np.vstack([
+    mesh.global_boundary_points,
+    mesh.global_inner_points,
+    np.vstack([dynamic_region.filled_points for dynamic_region in mesh.dynamic_regions]),
+])
+stats = Stats(all_points, mesh.mesh, buffer=STEP_SIZE * 0.1, delaunay_out="out/tri.png")
+stats.make_dists_pdf(ax)
+plt.savefig(pdf_out)
+print(f"PDF saved to {pdf_out}")

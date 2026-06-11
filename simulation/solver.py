@@ -29,7 +29,7 @@ class PointCloudSolver:
 
         R = alpha
         D = beta / L
-        self.T = np.sqrt((L ** 7) / alpha) / 10
+        self.T = np.sqrt((L ** 7) / alpha) / 3
 
         sdf = jnp.array(sdf_grid)
         grad_x = jnp.array(grad_x)
