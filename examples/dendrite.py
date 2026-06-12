@@ -7,7 +7,7 @@ import shapely
 import numpy as np
 from scipy.spatial import KDTree
 
-STEP_SIZE = 0.0001
+STEP_SIZE = 0.00005
 
 data = pl.read_csv("dendrite.csv")
 

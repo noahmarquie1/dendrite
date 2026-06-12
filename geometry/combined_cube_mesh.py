@@ -16,7 +16,7 @@ def new_unique_points(new, orig):
 
 
 class CombinedCubeMesh(Mesh):
-    def __init__(self, rects: list[Rect]):
+    def __init__(self, rects: list[Rect], dynamic=True):
         # Setup original rect
         super().__init__(rects[0])
         orig_static = self.static_regions[rects[0]]
@@ -42,7 +42,8 @@ class CombinedCubeMesh(Mesh):
 
         # Setup dynamic regions
         self.intersections = self.get_intersections()
-        self.make_dynamic()
+        if dynamic:
+            self.make_dynamic()
 
 
     def add_rect(self, rect_n: Rect, verbose=0):

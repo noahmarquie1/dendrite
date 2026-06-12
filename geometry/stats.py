@@ -3,18 +3,19 @@ from scipy.spatial import Delaunay, delaunay_plot_2d
 import shapely
 from shapely.plotting import plot_line, plot_polygon
 from shapely.geometry import LineString, Polygon
+from matplotlib.collections import LineCollection
 import numpy as np
 
 class Stats:
-    def __init__(self, points, mesh: Polygon, buffer=0.01, delaunay_out=None):
+    def __init__(self, points, mesh: Polygon, buffer=0.01):
         self.buffer = buffer
 
         self.points = points
         self.mesh = mesh
-        self.edges = self.make_delaunay(delaunay_out)
+        self.edges = self.make_delaunay()
 
 
-    def make_delaunay(self, out=None):
+    def make_delaunay(self):
         tri = Delaunay(self.points)
         triangles = tri.simplices
         edge_indices = np.concatenate([
@@ -23,29 +24,28 @@ class Stats:
             triangles[:, [0, 2]],
         ], axis=0)
 
-        edges = np.zeros((0,2,2))
-        for edge_indices in edge_indices:
+        valid_edges = []
+        buffered_bounds = self.mesh.buffer(self.buffer).boundary
+        
+        print(f"Num edges: {len(edge_indices)}")
+        for i, edge_indices in enumerate(edge_indices):
             edge = np.array([self.points[i] for i in edge_indices])
             line = LineString(edge)
-            plot_line(line)
-            intersects = line.crosses(self.mesh.boundary)
+            intersects = line.crosses(buffered_bounds)
 
             if not intersects:
-                edges = np.append(edges, np.array([edge]), axis=0)
+                valid_edges.append(edge)
         
-        if out:
-            fig, ax = plt.subplots(1,1)
-            ax.set_aspect(1)
-            delaunay_plot_2d(tri)
-            plt.savefig(out)
-
-
-        plot_polygon(self.mesh)
-        plt.show()
-        return edges
+        return np.array(valid_edges)
     
 
-    def make_dists_pdf(self, ax):
+    def plot_delaunay(self, ax):
+        lc = LineCollection(self.edges)
+        plot_polygon(self.mesh)
+        ax.add_collection(lc)
+    
+
+    def plot_dists_pdf(self, ax):
         distances = []
         for edge in self.edges:
             distances.append(np.linalg.norm(edge[1] - edge[0]))

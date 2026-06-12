@@ -39,13 +39,13 @@ for i, index in enumerate(indices):
 
 
 plt.style.use("seaborn-v0_8")
-mesh = CombinedCubeMesh(rect_list)
+mesh = CombinedCubeMesh(rect_list, dynamic=True)
 out_dir = "out/"
 os.makedirs(out_dir, exist_ok=True)
 
 fig, ax = plt.subplots(1,1)
-fig.set_figwidth(8)
-fig.set_figheight(16)
+fig.set_figwidth(10)
+fig.set_figheight(20)
 ax.set_aspect(1)
 
 img_out = "out/plot.png"
@@ -63,7 +63,17 @@ all_points = np.vstack([
     mesh.global_inner_points,
     np.vstack([dynamic_region.filled_points for dynamic_region in mesh.dynamic_regions]),
 ])
-stats = Stats(all_points, mesh.mesh, buffer=STEP_SIZE * 0.1, delaunay_out="out/tri.png")
-stats.make_dists_pdf(ax)
+stats = Stats(all_points, mesh.mesh, buffer=STEP_SIZE*0.01)
+
+delaunay_out = "out/tri.png"
+fig.set_figwidth(10)
+fig.set_figheight(20)
+stats.plot_delaunay(ax=ax)
+plt.savefig(delaunay_out)
+print(f"Delaunay Triangulation saved to {delaunay_out}.")
+plt.close('all')
+
+fig, ax = plt.subplots(1,1)
+stats.plot_dists_pdf(ax)
 plt.savefig(pdf_out)
 print(f"PDF saved to {pdf_out}")
