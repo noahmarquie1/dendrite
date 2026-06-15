@@ -70,21 +70,22 @@ class Triangle:
         for edge in self.edges:
             print("edge found")
             edge_points = np.array(edge.points)
-            plt.scatter(edge_points[:, 0], edge_points[:, 1], alpha=0.6)
+            plt.scatter(edge_points[:, 0], edge_points[:, 1], alpha=0.4)
 
-        plt.scatter(self.inner_points[:, 0], self.inner_points[:, 1], alpha=0.6)
-        plt.scatter(self.corners[:, 0], self.corners[:, 1], alpha=0.6)
+        plt.scatter(self.inner_points[:, 0], self.inner_points[:, 1], alpha=0.4)
+        plt.scatter(self.corners[:, 0], self.corners[:, 1], alpha=0.4)
 
 
-points = np.array([
-    [0, 0],
-    [1, 0],
-    [0.5, np.sqrt(3/4)],
-])
+if __name__ == "__main__":
+    points = np.array([
+        [0, 0],
+        [1, 0],
+        [0.5, np.sqrt(3/4)],
+    ])
 
-tri = Triangle(points, step_size=0.1)
+    tri = Triangle(points, step_size=0.1)
 
-edge_point = np.array([0.45, 0])
-tri.add_edge_point(edge_point)
-tri.visualize()
-plt.show()
+    edge_point = np.array([0.45, 0])
+    tri.add_edge_point(edge_point)
+    tri.visualize()
+    plt.show()
