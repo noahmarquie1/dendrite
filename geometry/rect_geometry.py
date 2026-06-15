@@ -1,36 +1,6 @@
 import numpy as np
 from shapely.geometry import LineString, Polygon, Point
-
-
-# Edge Helper Class
-class Edge:
-    def __init__(self, start, end):
-        self.linestrings: list[LineString] = [LineString([start, end])]
-        self.points_sorted: np.ndarray = [start, end]
-        self.total_linestring: LineString = LineString([start, end])
-
-
-    def update_points_sorted(self):
-        self.points_sorted = []
-        start = np.array(self.linestrings[0].coords)[0]
-        self.points_sorted.append(start)
-        for linestring in self.linestrings:
-            end = np.array(linestring.coords)[1]
-            self.points_sorted.append(end)
-
-    
-    def add_point(self, point: Point):
-        for i, line in enumerate(self.linestrings):
-            if line.distance(point) < 1e-8:
-                start = np.array(line.coords)[0]
-                end = np.array(line.coords)[1]
-                midpoint = np.array(point.coords)[0]
-
-                self.linestrings[i] = LineString([start, midpoint])
-                self.linestrings.insert(i+1, LineString([midpoint, end]))
-                break;
-
-        self.update_points_sorted()
+from base_geometry import Edge
 
 
 # Rect Class
@@ -147,7 +117,7 @@ class Rect:
                     line_points = np.append(line_points, line_seg, axis=0)
 
                 setattr(self, self.axes[edge], line_points)
-                break
+                break;
         
         if not edge_found:
             raise ValueError("Point entered is not on an edge of the square")

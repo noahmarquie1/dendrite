@@ -6,6 +6,56 @@ import shapely
 from shapely import Polygon
 from shapely import Geometry
 import matplotlib.pyplot as plt
+from shapely import LineString, Point
+
+
+class Edge:
+    def __init__(self, start, end, step_size=0.01):
+        self.linestrings: list[LineString] = [LineString([start, end])]
+        self.critical_points: np.ndarray = [start, end]
+        self.total_linestring: LineString = LineString([start, end])
+        self.points: np.ndarray = np.zeros((0,2))
+        self.step_size = step_size
+
+        self.start = start
+        self.end = end
+
+        self.update_points_sorted()
+
+
+    def update_points_sorted(self):
+        self.points = np.zeros((0,2))
+        start = np.array(self.linestrings[0].coords)[0]
+        self.critical_points = np.array([start])
+
+        total_length = self.total_linestring.length
+        total_steps = max(3, round(total_length / self.step_size))
+
+        for linestring in self.linestrings:
+            start = np.array(linestring.coords)[0]
+            end = np.array(linestring.coords)[1]
+            self.critical_points = np.append(self.critical_points, [end], axis=0)
+
+            segment_fraction = np.linalg.norm(end - start) / total_length
+            n_step = max(3, int(total_steps * segment_fraction))
+
+            line_seg = np.linspace(start, end, n_step)[1:-1]
+            self.points = np.append(self.points, line_seg, axis=0)
+
+        self.points = np.append(self.points, self.critical_points[1:-1], axis=0)
+
+    
+    def add_point(self, point: Point):
+        for i, line in enumerate(self.linestrings):
+            if line.distance(point) < 1e-5:
+                start = np.array(line.coords)[0]
+                end = np.array(line.coords)[1]
+                midpoint = np.array(point.coords)[0]
+                self.linestrings[i] = LineString([start, midpoint])
+                self.linestrings.insert(i+1, LineString([midpoint, end]))
+                break;
+
+        self.update_points_sorted()
 
 
 # 3D Geometry
