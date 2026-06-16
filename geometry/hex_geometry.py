@@ -17,13 +17,13 @@ unit_hex = np.array([
 
 class Hexagon:
     def __init__(self, radius, step_size=0.01):
-        tri_1 = Triangle(unit_hex[0], step_size)
-        tri_2 = Triangle(unit_hex[1], step_size)
-        tri_3 = Triangle(unit_hex[2], step_size)
+        tri_1 = Triangle(unit_hex[0] * radius, step_size)
+        tri_2 = Triangle(unit_hex[1] * radius, step_size)
+        tri_3 = Triangle(unit_hex[2] * radius, step_size)
 
-        tri_4 = Triangle(unit_hex[3], step_size)
-        tri_5 = Triangle(unit_hex[4], step_size)
-        tri_6 = Triangle(unit_hex[5], step_size)
+        tri_4 = Triangle(unit_hex[3] * radius, step_size)
+        tri_5 = Triangle(unit_hex[4] * radius, step_size)
+        tri_6 = Triangle(unit_hex[5] * radius, step_size)
 
         self.triangles = [tri_1, tri_2, tri_3, tri_4, tri_5, tri_6]
 
