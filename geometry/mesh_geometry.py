@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from simulation.solver import PointCloudSolver
 import jax.numpy as jnp
 from geometry.rect_geometry import Rect
+from geometry.base_geometry import Shape
 
 
 # Static Region Class
@@ -17,7 +18,7 @@ class StaticRegion:
     def __init__(self, rect: Rect, points=None, boundary_points=None):
         self.points = points if not points is None else rect.points
         self.boundary_points = boundary_points if not boundary_points is None else rect.edge_points
-        self.mesh = shapely.convex_hull(Polygon(self.points))
+        self.mesh = shapely.convex_hull(Polygon(self.boundary_points))
 
 
     def visualize(self, ax):
@@ -86,18 +87,18 @@ class DynamicRegion:
 
 # Mesh Class
 class Mesh:
-    def __init__(self, rect):
-        self.rects: list[Rect] = [rect] 
-        self.mesh = rect.mesh
-        self.boundary_points = rect.edge_points
-        self.static_regions: dict[Rect, StaticRegion] = { rect: StaticRegion(rect=rect) }
-        self.intersections: dict[Rect, list[DynamicRegion]] = { rect: [] }
+    def __init__(self, base_shape):
+        self.shapes: list[Shape] = [base_shape] 
+        self.mesh = base_shape.mesh
+        self.boundary_points = base_shape.edge_points
+        self.static_regions: dict[Shape, StaticRegion] = { base_shape: StaticRegion(rect=base_shape) }
+        self.intersections: dict[Shape, list[DynamicRegion]] = { base_shape: [] }
         self.dynamic_regions: list[DynamicRegion] = []
 
 
-    def padded_intersection(self, r1: Rect, r2: Rect, pad=0):
-        intersection = r1.mesh.intersection(r2.mesh)
-        padding_width = pad * min(r1.step_size, r2.step_size)
+    def padded_intersection(self, s1: Shape, s2: Shape, pad=0):
+        intersection = s1.mesh.intersection(s2.mesh)
+        padding_width = pad * min(s1.step_size, s2.step_size)
         return intersection.buffer(padding_width)
 
     
@@ -178,10 +179,10 @@ class Mesh:
         return dynamic_region
         
 
-    def add_rect(self, rect_n: Rect, verbose=0): # Main function used outside class
+    def add_shape(self, rect_n: Rect, verbose=0): # Main function used outside class
         self.static_regions[rect_n] = StaticRegion(rect_n)
 
-        for rect in self.rects:
+        for rect in self.shapes:
             edges1 = rect.mesh.exterior
             edges2 = rect_n.mesh.exterior
 
@@ -201,7 +202,7 @@ class Mesh:
                     print("Creating dynamic region")
                 self.create_dynamic_region(rect, rect_n, connecting_points)
                 
-        self.rects.append(rect_n)
+        self.shapes.append(rect_n)
 
 
     def dynamic_fill(self, verbose=0):

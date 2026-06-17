@@ -67,24 +67,18 @@ class Triangle:
         dist_pct = 0
         orig_idx = 0
 
-        print([len(edge.points) for edge in self.edges])
-
         for i, edge in enumerate(self.edges):
             if edge.total_linestring.distance(Point(point)) < tolerance:
                 dist = np.linalg.norm(edge.start - point)
                 dist_pct = dist / edge.total_linestring.length
                 edge.add_point(Point(point))
                 orig_idx = i
-                print(edge.points.shape)
                 break;
     
         for i, edge in enumerate(self.edges):
             if i != orig_idx:
                 new_point = edge.total_linestring.interpolate(dist_pct * edge.total_linestring.length)
                 edge.add_point(new_point)
-                print(edge.points.shape)
-
-        print([len(edge.points) for edge in self.edges])
 
         self.create_grid()
                 
@@ -103,7 +97,7 @@ if __name__ == "__main__":
     plt.style.use("seaborn-v0_8")
     fig, ax = plt.subplots(1,1)
     ax.set_aspect(1)
-    
+
     points = np.array([
         [0, 0],
         [1, 0],

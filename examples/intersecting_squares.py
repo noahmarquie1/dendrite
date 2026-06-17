@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from geometry.mesh_geometry import Rect, Mesh
-from geometry.combined_cube_mesh import CombinedCubeMesh
+from geometry.strict_mesh import StrictMesh
 from geometry.stats import Stats
 
 plt.style.use("seaborn-v0_8")
@@ -14,10 +14,10 @@ s1 = Rect(1, 2, step_size=STEP_SIZE)
 mesh = Mesh(s1)
 
 s2 = Rect(0.5, 1.5, step_size=STEP_SIZE)
-s2.transform_square([-0.5, 0.25], np.pi / 4)
+s2.transform([-0.5, 0.25], np.pi / 4)
 
 # Distance Tests
-strict_mesh = CombinedCubeMesh([s1, s2])
+strict_mesh = StrictMesh([s1, s2])
 fig, ax = plt.subplots(1,1)
 ax.set_aspect(1)
 strict_mesh.visualize(ax, verbose=0)

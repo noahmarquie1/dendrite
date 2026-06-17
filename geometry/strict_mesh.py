@@ -1,8 +1,9 @@
 from geometry.mesh_geometry import Mesh, StaticRegion, DynamicRegion
 from geometry.rect_geometry import Rect
+from geometry.base_geometry import Shape
 from shapely.plotting import plot_polygon
 import shapely
-from shapely import Point, Polygon
+from shapely import Point
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import KDTree
@@ -11,22 +12,22 @@ from scipy.spatial import KDTree
 def new_unique_points(new, orig):
     tree = KDTree(orig)
     dists, _ = tree.query(new)
-    mask = dists > 1e-7
+    mask = dists > 1e-8
     return new[mask]
 
 
-class CombinedCubeMesh(Mesh):
-    def __init__(self, rects: list[Rect], dynamic=True):
-        # Setup original rect
-        super().__init__(rects[0])
-        orig_static = self.static_regions[rects[0]]
-        mask = shapely.dwithin(orig_static.mesh.boundary, shapely.points(orig_static.points), distance=1e-5)
+class StrictMesh(Mesh):
+    def __init__(self, shapes: list[Shape], dynamic=True):
+        # Setup first shape
+        super().__init__(shapes[0])
+        orig_static = self.static_regions[shapes[0]]
+        mask = shapely.dwithin(orig_static.mesh.boundary, shapely.points(orig_static.points), distance=1e-8)
         orig_static.points = orig_static.points[~mask]
 
         self.shared_boundary_points = np.zeros((0,2))
 
-        for i in range(1, len(rects)):
-            self.add_rect(rects[i])
+        for i in range(1, len(shapes)):
+            self.add_shape(shapes[i])
 
         mask = shapely.dwithin(self.mesh.boundary, shapely.points(self.shared_boundary_points), distance=1e-8)
         self.shared_boundary_points = self.shared_boundary_points[mask]
@@ -46,16 +47,16 @@ class CombinedCubeMesh(Mesh):
             self.make_dynamic()
 
 
-    def add_rect(self, rect_n: Rect, verbose=0):
-        self.mesh = shapely.union(self.mesh, rect_n.mesh)
-        boundary_points = rect_n.edge_points
-        inner_points = new_unique_points(rect_n.points, boundary_points)
+    def add_shape(self, shape_n: Shape, verbose=0):
+        self.mesh = shapely.union(self.mesh, shape_n.mesh)
+        boundary_points = shape_n.edge_points
+        inner_points = new_unique_points(shape_n.points, boundary_points)
 
-        for i in range(0, len(self.rects)):
-            rect = self.rects[i]
+        for i in range(0, len(self.shapes)):
+            shape = self.shapes[i]
 
-            edges1 = rect.mesh.exterior
-            edges2 = rect_n.mesh.exterior
+            edges1 = shape.mesh.exterior
+            edges2 = shape_n.mesh.exterior
             intersection = edges2.intersection(edges1)
             connecting_points = shapely.get_coordinates(intersection)
 
@@ -63,39 +64,39 @@ class CombinedCubeMesh(Mesh):
 
             if connecting_points.shape[0] > 0:
                 for point in connecting_points:
-                    rect.add_edge_point(Point(point))
-                    rect_n.add_edge_point(Point(point))
+                    shape.add_edge_point(point)
+                    shape_n.add_edge_point(point)
 
                 # Edit static region for new rect
                 min_point_dist = 3e-5
                 bounds_mask = (
-                    shapely.dwithin(rect.mesh, shapely.points(boundary_points), distance=1e-5)
+                    shapely.dwithin(shape.mesh, shapely.points(boundary_points), distance=1e-8)
                     | shapely.dwithin(shapely.MultiPoint(connecting_points), shapely.points(boundary_points), distance=min_point_dist)
                 )
-                inner_mask = shapely.dwithin(rect.mesh, shapely.points(inner_points), distance=1e-5)
+                inner_mask = shapely.dwithin(shape.mesh, shapely.points(inner_points), distance=1e-8)
                 boundary_points = boundary_points[~bounds_mask]
                 inner_points = inner_points[~inner_mask]
 
                 # Edit static region for old rect
-                region = self.static_regions[rect]
+                region = self.static_regions[shape]
                 bounds_mask = (
-                    shapely.dwithin(rect_n.mesh, shapely.points(region.boundary_points), distance=1e-5)
+                    shapely.dwithin(shape_n.mesh, shapely.points(region.boundary_points), distance=1e-8)
                     | shapely.dwithin(shapely.MultiPoint(connecting_points), shapely.points(region.boundary_points), distance=min_point_dist)
                 )
-                inner_mask = shapely.dwithin(rect_n.mesh, shapely.points(region.points), distance=1e-5)
+                inner_mask = shapely.dwithin(shape_n.mesh, shapely.points(region.points), distance=1e-8)
                 region.boundary_points = region.boundary_points[~bounds_mask]
                 region.points = region.points[~inner_mask]
 
-        static_region = StaticRegion(rect_n, inner_points, boundary_points)
-        self.static_regions[rect_n] = static_region
-        self.rects.append(rect_n)
+        static_region = StaticRegion(shape_n, inner_points, boundary_points)
+        self.static_regions[shape_n] = static_region
+        self.shapes.append(shape_n)
 
 
     def get_intersections(self):
         intersections = []
-        for i in range(0, len(self.rects)):
-            for j in range(i+1, len(self.rects)):
-                intersection = shapely.intersection(self.rects[i].mesh, self.rects[j].mesh)
+        for i in range(0, len(self.shapes)):
+            for j in range(i+1, len(self.shapes)):
+                intersection = shapely.intersection(self.shapes[i].mesh, self.shapes[j].mesh)
                 if not intersection.is_empty:
                     intersections.append(intersection)
 
@@ -132,20 +133,19 @@ class CombinedCubeMesh(Mesh):
 
     def make_dynamic(self):
         for intersection in self.intersections:
-            padding_width = 2 * self.rects[0].step_size
+            padding_width = 2 * self.shapes[0].step_size
             padded_intersection = intersection.buffer(padding_width)
 
             all_points = np.vstack([
                 self.global_boundary_points,
                 self.global_inner_points
             ])
-            mask = shapely.dwithin(padded_intersection, shapely.points(all_points), distance=1e-5)
+            mask = shapely.dwithin(padded_intersection, shapely.points(all_points), distance=1e-8)
             dynamic_bound_points = all_points[mask]
 
-            n_bodies = int(2 * shapely.area(intersection) / (np.sqrt(3) * (self.rects[0].step_size ** 2)))
+            n_bodies = int(2 * shapely.area(intersection) / (np.sqrt(3) * (self.shapes[0].step_size ** 2)))
             dynamic_region = DynamicRegion(dynamic_bound_points, np.zeros((0,2)), n_bodies, padded_intersection)
             self.dynamic_regions.append(dynamic_region)
-            #plot_polygon(dynamic_region.mesh)
 
             dynamic_region.fill()
             

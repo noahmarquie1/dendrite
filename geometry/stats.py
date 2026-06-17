@@ -26,8 +26,6 @@ class Stats:
 
         valid_edges = []
         buffered_bounds = self.mesh.buffer(self.buffer).boundary
-        
-        print(f"Num edges: {len(edge_indices)}")
         for i, edge_indices in enumerate(edge_indices):
             edge = np.array([self.points[i] for i in edge_indices])
             line = LineString(edge)

@@ -1,6 +1,6 @@
 import polars as pl
 from geometry.mesh_geometry import Rect
-from geometry.combined_cube_mesh import CombinedCubeMesh
+from geometry.strict_mesh import StrictMesh
 import matplotlib.pyplot as plt
 import os
 from geometry.stats import Stats
@@ -13,7 +13,7 @@ STEP_SIZE = 0.00005
 data = pl.read_csv("data/dendrite.csv")
 
 base_rect = Rect(data[1]['width'].item(), data[1]['height'].item(), step_size=STEP_SIZE)
-base_rect.transform_square(
+base_rect.transform(
     offset=[data[1]['trans_x'].item(), data[1]['trans_y'].item()], 
     theta=data[1]['rotation'].item()
 )
@@ -31,7 +31,7 @@ for i, index in enumerate(indices):
 
     square_data = data[index]
     rect = Rect(square_data['width'].item(), square_data['height'].item() * height_multiples[i], step_size=STEP_SIZE)
-    rect.transform_square(
+    rect.transform(
         offset=[square_data['trans_x'].item() * x_offsets[i], square_data['trans_y'].item()], 
         theta=square_data['rotation'].item()
     )
@@ -39,7 +39,7 @@ for i, index in enumerate(indices):
 
 
 plt.style.use("seaborn-v0_8")
-mesh = CombinedCubeMesh(rect_list, dynamic=True)
+mesh = StrictMesh(rect_list, dynamic=True)
 out_dir = "out/"
 os.makedirs(out_dir, exist_ok=True)
 

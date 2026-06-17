@@ -49,6 +49,20 @@ class Edge:
         self.update_points_sorted()
 
 
+class Shape:
+    def __init__(self):
+        self.edge_points = np.zeros((0,2))
+        self.points = np.zeros((0,2))
+        self.mesh: Polygon = None
+        self.step_size = 0
+
+    def transform(self, offset, theta):
+        pass
+
+    def add_edge_point(self, point):
+        pass
+
+
 # 3D Geometry
 def extrude(base, num_steps, start_z, end_z):
     base = np.hstack([base, np.zeros((base.shape[0], 1))]) # 2d - 3d conversion

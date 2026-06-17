@@ -1,10 +1,10 @@
 import numpy as np
-from shapely.geometry import LineString, Polygon, Point
-from geometry.base_geometry import Edge, transform_points
+from shapely.geometry import Polygon, Point
+from geometry.base_geometry import Edge, Shape, transform_points
 
 
 # Rect Class
-class Rect:
+class Rect(Shape):
     def __init__(self, width, height, step_size=0.1):
 
         self.corners = np.array([
@@ -72,7 +72,7 @@ class Rect:
         self.mesh = Polygon(self.corners)
 
 
-    def transform_square(self, offset, theta):
+    def transform(self, offset, theta):
         c, s = np.cos(theta), np.sin(theta)
         rotation_matrix = np.array([
             [c, -s],

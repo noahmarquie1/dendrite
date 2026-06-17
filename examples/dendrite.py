@@ -12,7 +12,7 @@ STEP_SIZE = 0.00005
 data = pl.read_csv("data/dendrite.csv")
 
 base_rect = Rect(data[1]['width'].item(), data[1]['height'].item(), step_size=STEP_SIZE)
-base_rect.transform_square(
+base_rect.transform(
         offset=[data[1]['trans_x'].item(), data[1]['trans_y'].item()], 
         theta=data[1]['rotation'].item()
     )
@@ -27,11 +27,11 @@ for i in indices:
 
     square_data = data[i]
     rect = Rect(square_data['width'].item(), square_data['height'].item(), step_size=STEP_SIZE)
-    rect.transform_square(
+    rect.transform(
         offset=[square_data['trans_x'].item(), square_data['trans_y'].item()], 
         theta=square_data['rotation'].item()
     )
-    mesh.add_rect(rect)
+    mesh.add_shape(rect)
 
 for i, region in enumerate(mesh.dynamic_regions):
     region.set_n_bodies(region.n_bodies + 5)
