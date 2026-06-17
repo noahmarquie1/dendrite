@@ -1,4 +1,4 @@
-from tri_geometry import Triangle
+from geometry.tri_geometry import Triangle
 import numpy as np
 import matplotlib.pyplot as plt
 from shapely import Point
@@ -58,6 +58,12 @@ class Hexagon:
         ])
 
 
+    def transform(self, offset, theta):
+        for tri in self.triangles:
+            tri.transform(offset, theta)
+        self.load_hex()
+
+
     def add_edge_point(self, point):
         tolerance = 1e-5
 
@@ -70,15 +76,17 @@ class Hexagon:
 
 
 
-    def visualize(self):
-        plt.scatter(self.inner_points[:, 0], self.inner_points[:, 1], alpha=0.5)
-        plt.scatter(self.boundary_points[:, 0], self.boundary_points[:, 1], alpha=0.5, c="red")
+    def visualize(self, ax):
+        ax.scatter(self.inner_points[:, 0], self.inner_points[:, 1], alpha=0.5)
+        ax.scatter(self.boundary_points[:, 0], self.boundary_points[:, 1], alpha=0.5, c="red")
 
 
 if __name__ == "__main__":
+    fig, ax = plt.subplots(1,1)
+    ax.set_aspect(1)
     hex = Hexagon(1, step_size = 0.1)
-
+    
     new_point = np.array([[0, np.sqrt(3/4)]])
     hex.add_edge_point(new_point)
-    hex.visualize()
+    hex.visualize(ax)
     plt.show()

@@ -1,12 +1,8 @@
 import numpy as np
-from base_geometry import Edge
+from geometry.base_geometry import Edge, transform_points
 import matplotlib.pyplot as plt
 from shapely import LineString, Point, Polygon
 from shapely.plotting import plot_line, plot_points
-
-plt.style.use("seaborn-v0_8")
-fig, ax = plt.subplots(1,1)
-ax.set_aspect(1)
 
 class Triangle:
     def __init__(self, points: np.ndarray, step_size=0.01):
@@ -16,16 +12,20 @@ class Triangle:
         self.step_size = step_size
 
         # Edge objects keep track of permanent points, edge dict m
-        self.edge1 = Edge(points[0], points[1], self.step_size)
-        self.edge2 = Edge(points[0], points[2], self.step_size)
-        self.edge3 = Edge(points[2], points[1], self.step_size)
-        self.edges = [self.edge1, self.edge2, self.edge3]
         self.corners = points
+        self.update_edges()
 
         self.inner_points = np.zeros((0,2))
         self.mesh = Polygon(points)
         
         self.create_grid()
+
+
+    def update_edges(self):
+        self.edge1 = Edge(self.corners[0], self.corners[1], self.step_size)
+        self.edge2 = Edge(self.corners[0], self.corners[2], self.step_size)
+        self.edge3 = Edge(self.corners[2], self.corners[1], self.step_size)
+        self.edges = [self.edge1, self.edge2, self.edge3]
 
     
     def create_grid(self):
@@ -48,6 +48,18 @@ class Triangle:
             self.inner_points = np.vstack(intersections)
         else:
             self.inner_points = np.zeros((0,2))
+
+    
+    def transform(self, offset, theta):
+        c, s = np.cos(theta), np.sin(theta)
+        rotation_matrix = np.array([
+            [c, -s],
+            [s,  c]
+        ])
+
+        self.corners = transform_points(self.corners, offset, rotation_matrix)
+        self.update_edges()
+        self.create_grid()
 
 
     def add_edge_point(self, point: np.ndarray):
@@ -88,6 +100,10 @@ class Triangle:
 
 
 if __name__ == "__main__":
+    plt.style.use("seaborn-v0_8")
+    fig, ax = plt.subplots(1,1)
+    ax.set_aspect(1)
+    
     points = np.array([
         [0, 0],
         [1, 0],
@@ -99,4 +115,9 @@ if __name__ == "__main__":
     edge_point = np.array([0.45, 0])
     tri.add_edge_point(edge_point)
     tri.visualize()
+
+    tri_2 = Triangle(points, step_size=0.1)
+    tri_2.transform((2, np.sqrt(3/4)), np.pi)
+    tri_2.visualize()
+
     plt.show()

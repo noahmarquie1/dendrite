@@ -64,6 +64,13 @@ def extrude(base, num_steps, start_z, end_z):
     return points
 
 
+def transform_points(points, offset, rotation_matrix):
+        points = points @ rotation_matrix.T
+        points[:, 0] += offset[0]
+        points[:, 1] += offset[1]
+        return points
+
+
 def plot_3d_element(edge_points, inner_points):
     start_z = -0.1
     end_z = 0.1

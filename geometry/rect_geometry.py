@@ -1,6 +1,6 @@
 import numpy as np
 from shapely.geometry import LineString, Polygon, Point
-from geometry.base_geometry import Edge
+from geometry.base_geometry import Edge, transform_points
 
 
 # Rect Class
@@ -72,13 +72,6 @@ class Rect:
         self.mesh = Polygon(self.corners)
 
 
-    def transform_points(self, points, rot, offset):
-        points = points @ rot.T
-        points[:, 0] += offset[0]
-        points[:, 1] += offset[1]
-        return points
-
-
     def transform_square(self, offset, theta):
         c, s = np.cos(theta), np.sin(theta)
         rotation_matrix = np.array([
@@ -86,10 +79,10 @@ class Rect:
             [s,  c]
         ])
 
-        self.points = self.transform_points(self.points, rotation_matrix, offset)
-        self.x_pts = self.transform_points(self.x_pts, rotation_matrix, offset)
-        self.y_pts = self.transform_points(self.y_pts, rotation_matrix, offset)
-        self.corners = self.transform_points(self.corners, rotation_matrix, offset)
+        self.points = transform_points(self.points, offset, rotation_matrix)
+        self.x_pts = transform_points(self.x_pts, offset, rotation_matrix)
+        self.y_pts = transform_points(self.y_pts, offset, rotation_matrix)
+        self.corners = transform_points(self.corners, offset, rotation_matrix)
         self.update_geometry()
 
     

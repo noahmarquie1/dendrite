@@ -10,7 +10,7 @@ import numpy as np
 STEP_SIZE = 0.00005
 
 # Generate geometry from dendrite.csv
-data = pl.read_csv("dendrite.csv")
+data = pl.read_csv("data/dendrite.csv")
 
 base_rect = Rect(data[1]['width'].item(), data[1]['height'].item(), step_size=STEP_SIZE)
 base_rect.transform_square(
