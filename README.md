@@ -25,8 +25,29 @@ pip install -e .
 To generate a mesh, use the following command.
 
 ```
-dendrite gen --static-poly {PATH} --dynamic-poly {PATH} --anim --csv --png --extrude --out-dir {PATH}
+dendrite gen -- csv {PATH_TO_CSV} --step-size {STEP_SIZE} --static (optional flag) --out {OUT_PATH}
 ```
+Here, *static* and *out* are optional flags. Output will be saved to `out/` by default.
+
+
+For additional help, type `dendrite --help`
+
+## Examples
+
+### Dendrite Branch
+
+```
+dendrite gen --csv data/dendrite_branch.csv --step_size=0.0001
+```
+<img src="dendrite_branch_example.png" width="30%" style="max-width: 300px" alt="Solver on simple cube.">
+
+
+### Hexagonal Stellar Plate
+
+```
+dendrite gen --csv data/stellar_plate.csv --step_size=0.0003
+```
+<img src="stellar_plate_example.png" width="30%" style="max-width: 300px" alt="Solver on simple cube.">
 
 
 ## Tech Stack
