@@ -1,6 +1,6 @@
 import numpy as np
 from shapely.geometry import LineString, Polygon, Point
-from base_geometry import Edge
+from geometry.base_geometry import Edge
 
 
 # Rect Class

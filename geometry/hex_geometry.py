@@ -1,6 +1,7 @@
 from tri_geometry import Triangle
 import numpy as np
 import matplotlib.pyplot as plt
+from shapely import Point
 
 unit_hex = np.array([
     # Top half of hexagon
@@ -17,42 +18,56 @@ unit_hex = np.array([
 
 class Hexagon:
     def __init__(self, radius, step_size=0.01):
-        tri_1 = Triangle(unit_hex[0] * radius, step_size)
-        tri_2 = Triangle(unit_hex[1] * radius, step_size)
-        tri_3 = Triangle(unit_hex[2] * radius, step_size)
+        self.tri_1 = Triangle(unit_hex[0] * radius, step_size)
+        self.tri_2 = Triangle(unit_hex[1] * radius, step_size)
+        self.tri_3 = Triangle(unit_hex[2] * radius, step_size)
 
-        tri_4 = Triangle(unit_hex[3] * radius, step_size)
-        tri_5 = Triangle(unit_hex[4] * radius, step_size)
-        tri_6 = Triangle(unit_hex[5] * radius, step_size)
+        self.tri_4 = Triangle(unit_hex[3] * radius, step_size)
+        self.tri_5 = Triangle(unit_hex[4] * radius, step_size)
+        self.tri_6 = Triangle(unit_hex[5] * radius, step_size)
 
-        self.triangles = [tri_1, tri_2, tri_3, tri_4, tri_5, tri_6]
+        self.triangles: list[Triangle] = [self.tri_1, self.tri_2, self.tri_3, self.tri_4, self.tri_5, self.tri_6]
+        self.load_hex()
 
-        # Put together boundary and inner points from each triangle
+
+    def load_hex(self):
         self.inner_points = np.vstack([
-            tri_1.inner_points,
-            tri_2.inner_points,
-            tri_3.inner_points,
+            self.tri_1.inner_points,
+            self.tri_2.inner_points,
+            self.tri_3.inner_points,
 
-            tri_4.inner_points,
-            tri_5.inner_points,
-            tri_6.inner_points,
+            self.tri_4.inner_points,
+            self.tri_5.inner_points,
+            self.tri_6.inner_points,
             
-            tri_1.edge2.points, tri_1.edge2.end, 
-            tri_2.edge1.points,
-            tri_3.edge1.points,
-            tri_4.edge3.points,
-            tri_5.edge3.points,
-            tri_6.edge2.points,
+            self.tri_1.edge2.points, self.tri_1.edge2.end, 
+            self.tri_2.edge1.points,
+            self.tri_3.edge1.points,
+            self.tri_4.edge3.points,
+            self.tri_5.edge3.points,
+            self.tri_6.edge2.points,
         ])
 
         self.boundary_points = np.vstack([
-            tri_1.edge1.points, tri_1.edge1.start,
-            tri_2.edge3.points, tri_2.edge3.end,
-            tri_3.edge3.points, tri_3.edge3.end,
-            tri_4.edge2.points, tri_4.edge2.end,
-            tri_5.edge2.points, tri_5.edge2.end,
-            tri_6.edge1.points, tri_6.edge1.start,
+            self.tri_1.edge1.points, self.tri_1.edge1.start,
+            self.tri_2.edge3.points, self.tri_2.edge3.end,
+            self.tri_3.edge3.points, self.tri_3.edge3.end,
+            self.tri_4.edge2.points, self.tri_4.edge2.end,
+            self.tri_5.edge2.points, self.tri_5.edge2.end,
+            self.tri_6.edge1.points, self.tri_6.edge1.start,
         ])
+
+
+    def add_edge_point(self, point):
+        tolerance = 1e-5
+
+        for i, tri in enumerate(self.triangles):
+            if tri.mesh.distance(Point(point)) < tolerance:
+                tri.add_edge_point(point)
+                break;
+    
+        self.load_hex()
+
 
 
     def visualize(self):
@@ -62,5 +77,8 @@ class Hexagon:
 
 if __name__ == "__main__":
     hex = Hexagon(1, step_size = 0.1)
+
+    new_point = np.array([[0, np.sqrt(3/4)]])
+    hex.add_edge_point(new_point)
     hex.visualize()
     plt.show()

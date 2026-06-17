@@ -24,25 +24,16 @@ class Edge:
 
 
     def update_points_sorted(self):
-        self.points = np.zeros((0,2))
-        start = np.array(self.linestrings[0].coords)[0]
-        self.critical_points = np.array([start])
+        self.points = []
 
-        total_length = self.total_linestring.length
-        total_steps = max(3, round(total_length / self.step_size))
-
+        self.critical_points = np.array(
+            [self.linestrings[0].coords[0]] + [ls.coords[1] for ls in self.linestrings]
+        )
         for linestring in self.linestrings:
-            start = np.array(linestring.coords)[0]
-            end = np.array(linestring.coords)[1]
-            self.critical_points = np.append(self.critical_points, [end], axis=0)
+            n_points = max(3, int(round(linestring.length * 1e3) / 1e3 / self.step_size))
+            self.points.append(np.linspace(linestring.coords[0], linestring.coords[1], n_points)[1:-1])
 
-            segment_fraction = np.linalg.norm(end - start) / total_length
-            n_step = max(3, int(total_steps * segment_fraction))
-
-            line_seg = np.linspace(start, end, n_step)[1:-1]
-            self.points = np.append(self.points, line_seg, axis=0)
-
-        self.points = np.append(self.points, self.critical_points[1:-1], axis=0)
+        self.points = np.append(np.vstack(self.points), self.critical_points[1:-1], axis=0)
 
     
     def add_point(self, point: Point):

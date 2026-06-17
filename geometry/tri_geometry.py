@@ -1,7 +1,7 @@
 import numpy as np
 from base_geometry import Edge
 import matplotlib.pyplot as plt
-from shapely import LineString, Point
+from shapely import LineString, Point, Polygon
 from shapely.plotting import plot_line, plot_points
 
 plt.style.use("seaborn-v0_8")
@@ -23,6 +23,7 @@ class Triangle:
         self.corners = points
 
         self.inner_points = np.zeros((0,2))
+        self.mesh = Polygon(points)
         
         self.create_grid()
 
@@ -43,25 +44,35 @@ class Triangle:
                 if i != j and type(l1.intersection(l2)) == Point:
                     intersections.append(np.array(l1.intersection(l2).coords))
 
-        self.inner_points = np.vstack(intersections)
+        if len(intersections) > 0:
+            self.inner_points = np.vstack(intersections)
+        else:
+            self.inner_points = np.zeros((0,2))
 
 
     def add_edge_point(self, point: np.ndarray):
         tolerance = 1e-5
-        dist = 0
+        dist_pct = 0
         orig_idx = 0
+
+        print([len(edge.points) for edge in self.edges])
 
         for i, edge in enumerate(self.edges):
             if edge.total_linestring.distance(Point(point)) < tolerance:
                 dist = np.linalg.norm(edge.start - point)
+                dist_pct = dist / edge.total_linestring.length
                 edge.add_point(Point(point))
                 orig_idx = i
+                print(edge.points.shape)
                 break;
     
         for i, edge in enumerate(self.edges):
             if i != orig_idx:
-                new_point = edge.total_linestring.interpolate(dist)
+                new_point = edge.total_linestring.interpolate(dist_pct * edge.total_linestring.length)
                 edge.add_point(new_point)
+                print(edge.points.shape)
+
+        print([len(edge.points) for edge in self.edges])
 
         self.create_grid()
                 
