@@ -1,20 +1,14 @@
 import argparse
 from importlib.metadata import version
-from data.poly_management import load_polygon, save_polygon
-from mesh_generation.mesh import Mesh
-from mesh_generation.geometry import remove_in_area_points, extrude, plot_3d_element
-from simulation.solver import PointCloudSolver
-from shapely import Polygon
-import numpy as np
+from geometry.hex_geometry import Hexagon
+from geometry.rect_geometry import Rect
+from geometry.strict_mesh import StrictMesh
+from geometry.stats import Stats
 import os
 import matplotlib.pyplot as plt
+import numpy as np
+import polars as pl
 
-
-# Constants - TEMPORARY
-DPI = 75
-N_BODIES = 100
-FPS = 15
-DENSITY = 100
 
 # Helpers
 def format_out_dir(out_dir):
@@ -29,97 +23,77 @@ def format_out_dir(out_dir):
 def reset_plots():
     plt.close('all')
     fig, ax = plt.subplots(1,1)
-    ax.set_aspect(1/1)
+    ax.set_aspect(1)
     return fig, ax
 
 
 def print_version():
     v = version("dendrite")
     print(f"Dendrite {v}.")
-
-
-def handle_pngs(out_dir):
-    path = out_dir + "mesh.png"
-    plt.savefig(path)
-    print(f"2D mesh saved to {path}.")
-
-
-def handle_csvs(out_dir, points):
-    path = out_dir + "mesh.csv"
-    print(f"Saving csv to {path}.")
-    save_polygon(points, path)
-
-def handle_extrude(out_dir, edge_points, inner_points):
-    path = out_dir + "mesh_3d.png"
-    plt.close()
-    plot_3d_element(edge_points, inner_points)
-    plt.savefig(path)
-    print(f"3D Mesh saved to {path}")
     
 
 # Main CLI function
-def generate(static_poly, dynamic_poly, anim, extrude, png, csv, out_dir):
-    out_dir = format_out_dir(out_dir)
-    fig, ax = plt.subplots(1,1)
-    ax.set_aspect("equal")
+def generate(csv, static, step_size, out):
+    if out:
+        out = format_out_dir(out)
+    else:
+        out = "out/"
 
-    if static_poly:
-        s_vertices = load_polygon(static_poly)
-        s_mesh = Mesh(Polygon(s_vertices))
-        edge_points = s_mesh.edge_points
-        inner_points = s_mesh.inner_points
-        total_points = np.vstack([s_mesh.inner_points, s_mesh.edge_points])
-        if not dynamic_poly:
-            if anim:
-                print("Cannot generate animation for static mesh. Proceeding ...")
-            if csv:
-                print(f"Saving csv to {csv}.")
-                handle_csvs(csv, total_points)
-            if png:
-                print(f"Saving PNG to {png}.")
-                s_mesh.visualize(ax=ax)
-                handle_pngs(png)
-    
-    if dynamic_poly:
-        anim_color = 'blue'
-        d_vertices = load_polygon(dynamic_poly)
-        dynamic_poly = Polygon(d_vertices)
-        n_bodies = int(DENSITY * dynamic_poly.area)
-        solver = PointCloudSolver(dpi=DPI, plots=None, n_bodies=n_bodies, polygon=dynamic_poly, fps=FPS)
-        sol = solver.solve(steps=int(1e4))
+    shape_type = None
 
-        if static_poly:
-            s_mesh.add_shape(Polygon(d_vertices))
-            s_mesh.inner_points = remove_in_area_points(s_mesh.inner_points, d_vertices)
-            s_mesh.inner_points = np.vstack([s_mesh.inner_points, s_mesh.edge_fill(Polygon(d_vertices))])
-            solver.anim.add_static_points(s_mesh.inner_points, "red")
-            solver.anim.add_static_points(s_mesh.edge_points, "blue")
-            fig, ax = reset_plots()
-            anim_color = 'purple'
-            edge_points = s_mesh.edge_points
-            inner_points = np.vstack([sol[-1][:n_bodies], s_mesh.inner_points])
-            total_points = np.vstack([edge_points, inner_points])
-            s_mesh.visualize(ax=ax)
-            ax.scatter(sol[-1][:n_bodies, 0], sol[-1][:n_bodies, 1], s=4, c='purple')
+    try:
+        df = pl.read_csv(csv)
+        cols = df.columns
+        if len(cols) == 4:
+            shape_type = "hex"
+        elif len(cols) == 5:
+            shape_type = "rect"
         else:
-            fig, ax = reset_plots()
-            d_mesh = Mesh(Polygon(d_vertices))
-            edge_points = d_mesh.edge_points
-            inner_points = sol[-1][:n_bodies]
-            total_points = np.vstack([edge_points, inner_points])
-            ax.scatter(total_points[:, 0], total_points[:, 1])
+            raise ValueError 
+    except:
+        print("Please provide valid shape via csv. Exiting ...")
+        quit()
 
-        if png:
-            handle_pngs(out_dir)
-        if anim:
-            solver.animate(out=out_dir + "anim.gif", color=anim_color)
-        if csv:
-            handle_csvs(out_dir, total_points)
-        if extrude:
-            handle_extrude(out_dir, edge_points, inner_points)
-        return
+    shape_list = []
+    for row in df.iter_rows():
+        if shape_type == "hex":
+            radius, trans_x, trans_y, theta = row
+        else:
+            width, height, trans_x, trans_y, theta = row
 
-    print("Please specify either a static or dynamic polygon for mesh creation. Quitting ...")
+        shape = Hexagon(radius, step_size) if shape_type == "hex" else Rect(width, height, step_size)
+        shape.transform((trans_x, trans_y), theta)
+        shape_list.append(shape)
+
+    mesh = StrictMesh(shape_list, dynamic=not static)
+
+    plt.style.use("seaborn-v0_8")
+    fig, ax = reset_plots()
+    plot_out = out + "plot.png"
+    mesh.visualize(ax)
+    plt.savefig(plot_out)
+    print(f"Plot saved to {plot_out}.")
+
+    all_points = np.vstack([
+        mesh.global_boundary_points,
+        mesh.global_inner_points,
+    ])
+    if not static:
+        all_points = np.concatenate([all_points, np.vstack([dynamic_region.filled_points for dynamic_region in mesh.dynamic_regions])], axis=0)
+
+    stats = Stats(all_points, mesh.mesh, buffer=step_size*0.01)
+    fig, ax = reset_plots()
+    delaunay_out = out + "tri.png"
+    stats.plot_delaunay(ax=ax)
+    plt.savefig(delaunay_out)
+    print(f"Delaunay Triangulation saved to {delaunay_out}.")
+
+    plt.close('all')
+    fig, ax = plt.subplots(1,1)
+    pdf_out = out + "pdf.png"
+    stats.plot_dists_pdf(ax)
+    plt.savefig(pdf_out)
+    print(f"PDF saved to {pdf_out}.")
     
 
 def main():
@@ -130,47 +104,31 @@ def main():
     gen_parser = subparsers.add_parser("gen", help="Generate a mesh from provided polygons using a mix of static and dynamic methods.")
 
     gen_parser.add_argument(
-        "--static-poly", 
-        required=False, 
-        type=str, 
-        help="Specify polygon path (csv) to be filled in statically."
-    )
-    gen_parser.add_argument(
-        "--dynamic-poly", 
-        required=False, 
-        type=str, 
-        help="Specify polygon path (csv) to be filled in dynamically."
-    )
-    gen_parser.add_argument(
-        "--anim", 
-        required=False, 
-        action="store_true",
-        help="Boolean flag to include animations. Can be 'gif' or 'mp4.'"
-    )
-    gen_parser.add_argument(
-        "--extrude", 
-        required=False,
-        action="store_true",
-        help="Boolean flag to include 3D mesh."
-    )
-    gen_parser.add_argument(
-        "--png", 
-        required=False, 
-        action="store_true",
-        help="Specifies directory for outputted PNGs of 2D mesh and/or extruded 3D mesh."
-    )
-    gen_parser.add_argument(
         "--csv", 
-        required=False, 
-        action="store_true",
-        help="Specifies location for CSV of final mesh."
+        required=True, 
+        type=str, 
+        help="Specify CSV file to create point distribution from."
     )
+
     gen_parser.add_argument(
-        "--out-dir",
-        required=False,
-        type=str,
-        help="Specifies directory for output data and images."
+        "--static",
+        action="store_true",
+        help="Does not generate dynamic point distributions if specified."
     )
+
+    gen_parser.add_argument(
+        "--step-size",
+        required=True,
+        type=float,
+        help="Specifies ideal point spacing to be achieved."
+    )
+
+    gen_parser.add_argument(
+        "--out",
+        required=False,
+        help="Specifies file to be written to. Uses 'out/' by defualt."
+    )
+    
 
     args = parser.parse_args()
 
@@ -179,11 +137,8 @@ def main():
 
     elif args.command == "gen":
         generate(
-            static_poly=args.static_poly, 
-            dynamic_poly=args.dynamic_poly,
-            anim=args.anim, 
-            extrude=args.extrude,
-            png=args.png,
             csv=args.csv,
-            out_dir=args.out_dir,
+            static=args.static,
+            step_size=args.step_size,
+            out=args.out,
         )

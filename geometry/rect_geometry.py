@@ -86,19 +86,19 @@ class Rect(Shape):
         self.update_geometry()
 
     
-    def add_edge_point(self, point: Point):
+    def add_edge_point(self, point):
         line_points = np.zeros((0,2))
         self.points = np.zeros((0,2))
         tolerance = 1e-7
 
         edge_found = False
         for edge in self.edges:
-            if edge.total_linestring.distance(point) < tolerance:
+            if edge.total_linestring.distance(Point(point)) < tolerance:
                 edge_found = True
-                edge.add_point(point)
+                edge.add_point(Point(point))
 
                 opposite_edge = self.opposite_edges[edge]
-                opposite_point = opposite_edge.total_linestring.interpolate(opposite_edge.total_linestring.project(point))
+                opposite_point = opposite_edge.total_linestring.interpolate(opposite_edge.total_linestring.project(Point(point)))
                 opposite_edge.add_point(opposite_point)
                 line_points = np.append(line_points, np.array([edge.linestrings[0].coords[0]]), axis=0)
 

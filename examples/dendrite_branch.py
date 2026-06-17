@@ -27,7 +27,7 @@ fig, ax = plt.subplots(1,1)
 ax.set_aspect(1)
 
 for i, index in enumerate(indices):
-    print(f"Adding square {i+1}/{len(indices)}")
+    #print(f"Adding square {i+1}/{len(indices)}")
 
     square_data = data[index]
     rect = Rect(square_data['width'].item(), square_data['height'].item() * height_multiples[i], step_size=STEP_SIZE)

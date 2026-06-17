@@ -20,7 +20,7 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["geometry", "simulation"]
+include = ["geometry", "simulation", "cli"]
 
 [project.scripts]
 dendrite = "cli.cli:main"
