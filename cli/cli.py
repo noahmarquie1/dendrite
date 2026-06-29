@@ -83,7 +83,12 @@ def generate(csv, static, step_size, out):
         all_points = np.concatenate([all_points, np.vstack([dynamic_region.filled_points for dynamic_region in mesh.dynamic_regions])], axis=0)
 
     points_df = pd.DataFrame(all_points)
-    points_df.to_csv("out/points.csv", header=False, index=False)
+    points_df.to_csv(
+        "out/points.csv",
+        header=False,
+        index=False,
+         float_format=lambda x: np.format_float_positional(x, trim='-'),
+    )
 
     stats = Stats(all_points, mesh.mesh, buffer=step_size*0.01)
     fig, ax = reset_plots()
