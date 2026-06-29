@@ -1,7 +1,5 @@
 import argparse
 from importlib.metadata import version
-
-from numba import int16
 from geometry.hex_geometry import Hexagon
 from geometry.rect_geometry import Rect
 from geometry.strict_mesh import StrictMesh
