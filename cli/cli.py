@@ -8,6 +8,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
+import pandas as pd
 
 
 # Helpers
@@ -30,7 +31,7 @@ def reset_plots():
 def print_version():
     v = version("dendrite")
     print(f"Dendrite {v}.")
-    
+
 
 # Main CLI function
 def generate(csv, static, step_size, out):
@@ -49,7 +50,7 @@ def generate(csv, static, step_size, out):
         elif len(cols) == 5:
             shape_type = "rect"
         else:
-            raise ValueError 
+            raise ValueError
     except:
         print("Please provide valid shape via csv. Exiting ...")
         quit()
@@ -81,6 +82,9 @@ def generate(csv, static, step_size, out):
     if not static:
         all_points = np.concatenate([all_points, np.vstack([dynamic_region.filled_points for dynamic_region in mesh.dynamic_regions])], axis=0)
 
+    points_df = pd.DataFrame(all_points)
+    points_df.to_csv("out/points.csv", header=False, index=False)
+
     stats = Stats(all_points, mesh.mesh, buffer=step_size*0.01)
     fig, ax = reset_plots()
     delaunay_out = out + "tri.png"
@@ -94,19 +98,19 @@ def generate(csv, static, step_size, out):
     stats.plot_dists_pdf(ax)
     plt.savefig(pdf_out)
     print(f"PDF saved to {pdf_out}.")
-    
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", action="store_true", help="Prints installed version of dendrite.")
-    
+
     subparsers = parser.add_subparsers(dest="command", help="Available commands.")
     gen_parser = subparsers.add_parser("gen", help="Generate a mesh from provided polygons using a mix of static and dynamic methods.")
 
     gen_parser.add_argument(
-        "--csv", 
-        required=True, 
-        type=str, 
+        "--csv",
+        required=True,
+        type=str,
         help="Specify CSV file to create point distribution from."
     )
 
@@ -128,7 +132,7 @@ def main():
         required=False,
         help="Specifies file to be written to. Uses 'out/' by defualt."
     )
-    
+
 
     args = parser.parse_args()
 
