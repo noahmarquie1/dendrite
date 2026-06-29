@@ -1,8 +1,11 @@
 import argparse
 from importlib.metadata import version
+
+from numba import int16
 from geometry.hex_geometry import Hexagon
 from geometry.rect_geometry import Rect
 from geometry.strict_mesh import StrictMesh
+from geometry.base_geometry import extrude
 from geometry.stats import Stats
 import os
 import matplotlib.pyplot as plt
@@ -47,8 +50,12 @@ def generate(csv, static, step_size, out):
         cols = df.columns
         if len(cols) == 4:
             shape_type = "hex"
+        elif len(cols) == 5 and "radius" in cols:
+            shape_type = "hex3d"
         elif len(cols) == 5:
             shape_type = "rect"
+        elif len(cols) == 6:
+            shape_type = "rect3d"
         else:
             raise ValueError
     except:
@@ -56,11 +63,16 @@ def generate(csv, static, step_size, out):
         quit()
 
     shape_list = []
+    depth = None
     for row in df.iter_rows():
         if shape_type == "hex":
             radius, trans_x, trans_y, theta = row
-        else:
+        elif shape_type == "hex3d":
+            radius, depth, trans_x, trans_y, theta = row
+        elif shape_type == "rect":
             width, height, trans_x, trans_y, theta = row
+        else:
+            width, height, depth, trans_x, trans_y, theta = row
 
         shape = Hexagon(radius, step_size) if shape_type == "hex" else Rect(width, height, step_size)
         shape.transform((trans_x, trans_y), theta)
@@ -75,12 +87,34 @@ def generate(csv, static, step_size, out):
     plt.savefig(plot_out)
     print(f"Plot saved to {plot_out}.")
 
-    all_points = np.vstack([
-        mesh.global_boundary_points,
-        mesh.global_inner_points,
-    ])
-    if not static:
-        all_points = np.concatenate([all_points, np.vstack([dynamic_region.filled_points for dynamic_region in mesh.dynamic_regions])], axis=0)
+    if depth:
+        z_max = depth / 2
+        z_min = -depth / 2
+        n_wall_steps = int((z_max - z_min) / step_size)
+
+        top_face = np.column_stack([mesh.global_inner_points, np.full(len(mesh.global_inner_points), z_max)])
+        bottom_face = np.column_stack([mesh.global_inner_points, np.full(len(mesh.global_inner_points), z_min)])
+        walls = extrude(mesh.global_boundary_points, n_wall_steps, z_min, z_max)
+        all_points = np.vstack([top_face, bottom_face, walls])
+
+        points_df = pd.DataFrame(all_points)
+        points_df.to_csv(
+            "out/points.csv",
+            header=False,
+            index=False,
+            float_format=lambda x: np.format_float_positional(x, trim='-'),
+        )
+        return
+
+    else:
+        all_points = np.vstack([
+            mesh.global_boundary_points,
+            mesh.global_inner_points,
+        ])
+        if not static:
+            all_points = np.concatenate([all_points, np.vstack([dynamic_region.filled_points for dynamic_region in mesh.dynamic_regions])], axis=0)
+
+
 
     points_df = pd.DataFrame(all_points)
     points_df.to_csv(
